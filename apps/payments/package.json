@@ -1,0 +1,23 @@
+{
+  "name": "@apps/payments",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/main.js",
+  "types": "dist/main.d.ts",
+  "scripts": {
+    "dev": "node -r ts-node/register -r tsconfig-paths/register src/main.ts",
+    "build": "rimraf dist && tsc -p tsconfig.json",
+    "seed:currencies": "node -r ts-node/register -r tsconfig-paths/register src/seeds/seed-currencies.ts"
+  },
+  "dependencies": {
+    "@nestjs/common": "^10.0.0",
+    "@nestjs/core": "^10.0.0",
+    "@nestjs/swagger": "^7.3.1",
+    "swagger-ui-express": "^5.0.1",
+    "@nestjs/typeorm": "^10.0.0",
+    "typeorm": "^0.3.20",
+    "pg": "^8.12.0",
+    "dotenv": "^16.4.1",
+    "axios": "^1.6.8"
+  }
+}

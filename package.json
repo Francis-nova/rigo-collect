@@ -1,0 +1,43 @@
+{
+  "name": "payments-platform",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@9.0.0",
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "format": "turbo run format",
+    "dev:api-gateway": "pnpm --filter @apps/api-gateway dev",
+    "dev:auth": "pnpm --filter @apps/auth dev",
+    "dev:payments": "pnpm --filter @apps/payments dev",
+    "dev:post-office": "pnpm --filter @apps/post-office dev"
+  },
+  "devDependencies": {
+    "turbo": "^2.0.0",
+    "typescript": "^5.6.3",
+    "@types/node": "^20.11.30",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "nodemon": "^3.0.2",
+    "rimraf": "^5.0.5",
+    "dotenv": "^16.4.1"
+  },
+  "dependencies": {
+    "@nestjs/common": "^10.0.0",
+    "@nestjs/core": "^10.0.0",
+    "@nestjs/platform-express": "^10.0.0",
+    "@nestjs/microservices": "^10.0.0",
+    "@nestjs/config": "^3.1.1",
+    "@nestjs/throttler": "^6.2.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.0",
+    "reflect-metadata": "^0.1.13",
+    "rxjs": "^7.8.1",
+    "pino": "^9.0.0",
+    "pino-pretty": "^11.0.0",
+    "amqplib": "^0.10.3",
+    "amqp-connection-manager": "^4.1.14"
+  }
+}

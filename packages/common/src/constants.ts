@@ -1,0 +1,5 @@
+export const AUTH_SERVICE = 'AUTH_SERVICE';
+export const PAYMENTS_SERVICE = 'PAYMENTS_SERVICE';
+export const POSTOFFICE_SERVICE = 'POSTOFFICE_SERVICE';
+export const BANKING_PROVIDER = 'BANKING_PROVIDER';
+export const IDEMPOTENCY_HEADER = 'Idempotency-Key';
