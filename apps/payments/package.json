@@ -5,9 +5,10 @@
   "main": "dist/main.js",
   "types": "dist/main.d.ts",
   "scripts": {
-    "dev": "node -r ts-node/register -r tsconfig-paths/register src/main.ts",
+    "dev": "nodemon",
     "build": "rimraf dist && tsc -p tsconfig.json",
-    "seed:currencies": "node -r ts-node/register -r tsconfig-paths/register src/seeds/seed-currencies.ts"
+    "seed:currencies": "node -r ts-node/register -r tsconfig-paths/register src/seeds/seed-currencies.ts",
+    "seed:providers": "node -r ts-node/register -r tsconfig-paths/register src/seeds/seed-provider-settings.ts"
   },
   "dependencies": {
     "@nestjs/common": "^10.0.0",

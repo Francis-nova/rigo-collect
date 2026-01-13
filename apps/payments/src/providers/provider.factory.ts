@@ -3,6 +3,8 @@ import { BANKING_PROVIDER } from '@pkg/common';
 import { IBankingProvider } from '@pkg/interfaces';
 import { MockProvider } from './providers.impl/mock.provider';
 import indexConfig from '../configs/index.config';
+import { SettingsModule } from '../settings/settings.module';
+import { ProviderRouter } from './provider.router';
 
 const providerFactory = (): IBankingProvider => {
   const name = indexConfig.provider.banking;
@@ -19,7 +21,8 @@ const providerBinding: Provider = {
 };
 
 @Module({
-  providers: [providerBinding],
-  exports: [providerBinding]
+  imports: [SettingsModule],
+  providers: [providerBinding, ProviderRouter],
+  exports: [providerBinding, ProviderRouter]
 })
 export class BankingProviderModule {}

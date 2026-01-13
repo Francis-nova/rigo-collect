@@ -19,6 +19,19 @@ const databaseConfig: DataSourceOptions = {
   logging: true,
 };
 
+const budPayConfig = {
+  secretKey: process.env.BUDPAY_API_SECRET_KEY || '',
+  publicKey: process.env.BUDPAY_API_PUBLIC_KEY || '',
+  baseUrl: process.env.BUDPAY_BASE_URL || 'https://api.budpay.com',
+};
+
+const providusConfig = {
+  clientId: process.env.PROVIDUS_CLIENT_ID || '',
+  clientSecret: process.env.PROVIDUS_CLIENT_SECRET || '',
+  signature: process.env.PROVIDUS_API_SIGNATURE || '',
+  baseUrl: process.env.PROVIDUS_BASE_URL || 'https://api.providusbank.com',
+};
+
 export default {
   nodeEnv: process.env.NODE_ENV || 'development',
   port: parseInt(process.env.PAYMENTS_PORT || process.env.PORT || '3002', 10),
@@ -38,5 +51,7 @@ export default {
   },
   provider: {
     banking: (process.env.BANKING_PROVIDER || 'mock').toLowerCase(),
-  }
+  },
+  budPayConfig,
+  providusConfig,
 }

@@ -3,6 +3,7 @@ import { IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
 export class CreateVirtualAccountDto {
   @IsNotEmpty() @IsString() merchantId!: string;
   @IsNotEmpty() @IsString() currency!: string;
+  @IsOptional() @IsString() providerOverride?: string;
 }
 
 export class PayoutDto {
@@ -13,4 +14,5 @@ export class PayoutDto {
   @IsNotEmpty() @IsString() destinationBankCode!: string;
   @IsOptional() @IsString() narration?: string;
   @IsNotEmpty() @IsString() idempotencyKey!: string;
+  @IsOptional() @IsString() providerOverride?: string;
 }
