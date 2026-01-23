@@ -30,6 +30,11 @@ const providusConfig = {
   clientSecret: process.env.PROVIDUS_CLIENT_SECRET || '',
   signature: process.env.PROVIDUS_API_SIGNATURE || '',
   baseUrl: process.env.PROVIDUS_BASE_URL || 'https://api.providusbank.com',
+  transferBaseUrl: process.env.PROVIDUS_TRANSFER_BASE_URL || 'https://transfer.providusbank.com',
+  accountNumber: process.env.PROVIDUS_ACCOUNT_NUMBER || '',
+  accountName: process.env.PROVIDUS_ACCOUNT_NAME || '',
+  username: process.env.PROVIDUS_USERNAME || '',
+  password: process.env.PROVIDUS_PASSWORD || '',
 };
 
 export default {

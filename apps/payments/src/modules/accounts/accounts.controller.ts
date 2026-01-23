@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Post, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Post, Body, UseGuards, Req } from '@nestjs/common';
 import { ApiTags, ApiOkResponse, ApiCreatedResponse, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AccountsService } from './accounts.service';
 import { Account } from '../../entities/account.entity';
@@ -27,15 +27,5 @@ export class AccountsController {
   async listSubAccounts(@Param('accountId') accountId: string) {
     const items = await this.accountsService.listSubAccounts(accountId);
     return ok(items);
-  }
-
-  @Post(':accountId/subaccounts')
-  @ApiCreatedResponse({ description: 'Subaccount created', type: SubAccount })
-  async createSubAccount(
-    @Param('accountId') accountId: string,
-    @Body() dto: CreateSubAccountDto,
-  ) {
-    const created = await this.accountsService.createSubAccount(accountId, dto);
-    return ok(created, 'created');
   }
 }

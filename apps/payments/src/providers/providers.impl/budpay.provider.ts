@@ -1,5 +1,5 @@
 import { Logger } from '@nestjs/common';
-import { IBankingProvider, PayoutRequest, PayoutResult, TransferInEvent, VirtualAccount, VirtualAccountRequest } from '@pkg/interfaces';
+import { IBankingProvider, PayoutRequest, PayoutResult, TransferInEvent, VerifyTransaction, VirtualAccount, VirtualAccountRequest } from '@pkg/interfaces';
 import axios from 'axios';
 import indexConfig from '../../configs/index.config';
 
@@ -71,10 +71,10 @@ export class BudPayProvider implements IBankingProvider {
     try {
       const name = input.accountName.split(" "); // split name
       const payload: IBudCustomerCreateDto = {
-        email: `${input.merchantId}@example.com`,
+        email: `${input.accountName}@example.com`,
         first_name: name[0],
         last_name: name.slice(1).join(" ") || 'User',
-        metadata: { merchantId: input.merchantId },
+        metadata: { currency: input.currency },
       };
       const customer = await this.createCustomer(payload);
       this.logger.debug(`BudPay Customer created: ${customer?.data?.customer_code}`);
@@ -127,7 +127,192 @@ export class BudPayProvider implements IBankingProvider {
     };
   }
 
+  async verifyTransaction(reference: string): Promise<VerifyTransaction<any>> {
+    try {
+
+      this.logger.debug('Verify transaction budpay');
+      const url = `${indexConfig.budPayConfig.baseUrl}/api/v2/transaction/verify/${reference}`;
+      const resp = await axios.get<IBudResp<any>>(url,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            accept: 'application/json',
+            Authorization: `Bearer ${indexConfig.budPayConfig.secretKey}`,
+          },
+        },
+      );
+
+      if (!resp.data.status) {
+        this.logger.error(`BudPay verifyTransaction failed: ${resp.data.message}`);
+        throw new Error('failed to verify transaction');
+      }
+
+      return {
+        status: resp.data?.data?.status.toLowerCase() === 'success' ? 'SUCCESS' :
+                resp.data?.data?.status.toLowerCase() === 'failed' ? 'FAILED' : 'PENDING',
+        reference: resp.data?.data?.reference,
+        currency: resp.data?.data.currency,
+        amount: resp.data?.data.amount,
+        details: resp.data?.data,
+      };
+    } catch (error) {
+      this.logger.error(`Error verifying transaction via BudPay: ${error}`);
+      throw new Error('failed to verify transaction');
+    }
+  }
+
   async initiatePayout(input: PayoutRequest): Promise<PayoutResult> {
-    return { status: 'PENDING', providerReference: `BUDPAY-${Date.now()}`, raw: { input } };
+
+    const body = {
+      amount: Number(input.amount),
+      currency: 'NGN',
+      bank_code: input.destinationBankCode,
+      bank_name: input.destinationBankName,
+      account_number: input.destinationAccountNumber,
+      narration: input.narration,
+      reference: input.reference,
+      meta_data: {
+        beneficiaryName: input.destinationAccountName,
+      },
+    }
+
+    try {
+      const url = `${indexConfig.budPayConfig.baseUrl}/api/v2/bank_transfer`;
+      const resp = await axios.post<IBudResp<any>>(url,
+        body,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            accept: 'application/json',
+            Authorization: `Bearer ${indexConfig.budPayConfig.secretKey}`,
+          },
+        },
+      );
+
+      if (!resp.data.status) {
+        this.logger.error(`BudPay initiatePayout failed: ${resp.data.message}`);
+        throw new Error('failed to initiate payout');
+      }
+
+      this.logger.debug(`BudPay Payout initiated: ${input.reference}`, resp.data);
+
+      return {
+        status: 'PENDING',
+        providerReference: resp.data?.data?.transfer_code || input.reference,
+        raw: resp.data,
+      };
+
+    } catch (error) {
+      this.logger.error('BudPay initiatePayout failed, falling back to stub', error as any);
+      throw new Error('failed to initiate payout');
+    }
+  }
+
+  async banksList(country: string = 'NG'): Promise<Array<{ name: string; code: string }>> {
+    try {
+      const url = `${indexConfig.budPayConfig.baseUrl}/api/v2/bank_list/${country ?? ''}`;
+      const resp = await axios.get<IBudResp<Array<{ bank_name: string; bank_code: string }>>>(url,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            accept: 'application/json',
+            Authorization: `Bearer ${indexConfig.budPayConfig.secretKey}`,
+          },
+        },
+      );
+
+      if (!resp.data.status) {
+        this.logger.error(`BudPay banksList failed: ${resp.data.message}`);
+        throw new Error('failed to fetch banks list');
+      }
+
+      return resp.data?.data?.map((bank: any) => ({
+        name: bank.bank_name,
+        code: bank.bank_code,
+      }));
+
+    } catch (error) {
+      this.logger.error('BudPay banksList failed, falling back to stub', error as any);
+      throw new Error('failed to fetch banks list');
+    }
+  }
+
+  async resolveAccount(accountNumber: string, bankCode: string): Promise<{ accountName: string; accountNumber: string; bankCode: string; }> {
+
+    try {
+      const url = `${indexConfig.budPayConfig.baseUrl}/api/v2/resolve_account`;
+      const resp = await axios.post<IBudResp<string>>(url,
+        {
+          account_number: accountNumber,
+          bank_code: bankCode,
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            accept: 'application/json',
+            Authorization: `Bearer ${indexConfig.budPayConfig.secretKey}`,
+          },
+        },
+      );
+
+      if (!resp.data.status) {
+        this.logger.error(`BudPay resolveAccount failed: ${resp.data.message}`);
+        throw new Error('failed to resolve account');
+      }
+
+      return {
+        accountName: resp.data?.data,
+        accountNumber: accountNumber,
+        bankCode: bankCode,
+      };
+
+    } catch (error) {
+      this.logger.error('BudPay resolveAccount failed, falling back to stub', error as any);
+      throw new Error('failed to resolve account');
+    }
+  }
+
+  private getPayoutStatusFromBudPayStatus(budPayStatus: string): 'PENDING' | 'SUCCESS' | 'FAILED' {
+    switch (budPayStatus.toLowerCase()) {
+      case 'success':
+        return 'SUCCESS';
+      case 'failed':
+        return 'FAILED';
+      default:
+        return 'PENDING';
+    }
+  }
+
+  async payoutStatusCheck(transactionReference: string): Promise<{ status: 'PENDING' | 'SUCCESS' | 'FAILED'; providerReference: string; raw?: any; }> {
+    try {
+      const url = `${indexConfig.budPayConfig.baseUrl}/api/v2/bank_transfer/status`;
+      const resp = await axios.post<IBudResp<{ status: string; transfer_code: string }>>(url,
+        {
+          reference: transactionReference,
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            accept: 'application/json',
+            Authorization: `Bearer ${indexConfig.budPayConfig.secretKey}`,
+          },
+        },
+      );
+
+      if (!resp.data.status) {
+        this.logger.error(`BudPay payoutStatusCheck failed: ${resp?.data?.message}`, resp.data);
+        throw new Error('failed to check payout status');
+      }
+
+      return {
+        status: this.getPayoutStatusFromBudPayStatus(resp.data?.data?.status || ''),
+        providerReference: transactionReference,
+        raw: resp.data,
+      };
+
+    } catch (error) {
+      this.logger.error('BudPay payoutStatusCheck failed, falling back to stub', error as any);
+      throw new Error('failed to check payout status');
+    }
   }
 }
