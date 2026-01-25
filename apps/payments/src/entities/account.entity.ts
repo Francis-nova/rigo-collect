@@ -10,22 +10,6 @@ export class Account {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  // e.g., 0123456789
-  @Index()
-  @Column({ type: 'varchar', length: 32, unique: true })
-  accountNumber!: string;
-
-  @Column({ type: 'varchar', length: 50 })
-  accountName!: string;
-
-  // e.g., bank code or provider code
-  @Index()
-  @Column({ type: 'varchar', length: 16 })
-  bankCode!: string;
-
-  @Column({ type: 'varchar', length: 50 })
-  bankName!: string;
-
   @Column({ type: 'varchar', length: 100 })
   name!: string; // the account name...
 

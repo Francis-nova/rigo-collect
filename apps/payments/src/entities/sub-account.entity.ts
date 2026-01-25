@@ -31,9 +31,6 @@ export class SubAccount {
   @Column({ type: 'uuid' })
   currencyId!: string;
 
-  @Column('decimal', { precision: 12, scale: 2, default: 0 })
-  balance!: number;
-
   @Index()
   @Column({ type: 'uuid' })
   businessId!: string;
@@ -43,6 +40,9 @@ export class SubAccount {
 
   @Column('jsonb', { nullable: true })
   metadata!: Record<string, any> | null;
+
+  @Column({ type: 'boolean', default: false })
+  isDefaultAccountAddress!: boolean; // indicates if this is the default account for the business... for collections only...
 
   @CreateDateColumn()
   createdAt!: Date;

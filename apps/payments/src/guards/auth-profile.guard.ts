@@ -2,6 +2,66 @@ import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from
 import axios from 'axios';
 import indexConfig from '../configs/index.config';
 
+export interface IUser {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  passwordHash: string;
+  phone: string | null;
+  businessName: string;
+  businessType: string;
+  userType: string;
+  emailVerifiedAt: string | null;
+  phoneVerifiedAt: string | null;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface IUserBusiness {
+  id: string
+  name: string
+  tradingName: string;
+  registrationNumber: string;
+  entityType: string;
+  ownerId: string;
+  status: string;
+  natureOfBusiness: string;
+  countryOfIncorporation: string;
+  dateOfIncorporation: string;
+  industry: string;
+  websiteUrl: string;
+  email: string;
+  phoneNumber: string;
+  tinNumber: null,
+  registeredAddress: {
+    city: string,
+    state: string,
+    street: string,
+    country: string
+  },
+  operatingAddress: {
+    city: string,
+    state: string,
+    street: string,
+    country: string
+  },
+  tier: string,
+  riskLevel: Record<string, any>,
+  kycStatus: string,
+  kycStage: string,
+  approvedAt: string,
+  approvedBy: string,
+  createdAt: string,
+  updatedAt: string,
+}
+
+export interface IAuthProfile {
+  user: IUser;
+  business: IUserBusiness;
+}
+
 @Injectable()
 export class AuthProfileGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -20,13 +80,13 @@ export class AuthProfileGuard implements CanActivate {
       headers['X-Internal-Key'] = internalKey;
       const resp = await axios.get(url, { headers });
       const payload = resp.data?.data ?? null;
-      if (!payload || payload.valid !== true) throw new UnauthorizedException('invalid_token_validation_response');
+      if (!payload || payload.status !== true) throw new UnauthorizedException('Invalid token validation');
       req.authProfile = payload;
-      req.user = payload.user;
-      req.business = payload.business;
+      req.user = payload.user as IUser;
+      req.business = payload.business as IUserBusiness;
       return true;
     } catch (err: any) {
-      throw new UnauthorizedException('invalid_or_expired_token');
+      throw new UnauthorizedException('Invalid or expired token');
     }
   }
 }

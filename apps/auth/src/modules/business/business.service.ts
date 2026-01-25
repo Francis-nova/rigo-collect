@@ -104,6 +104,10 @@ export class BusinessService {
     return pivot || null;
   }
 
+  async getBusinessById(businessId: string) {
+    return this.businessRepo.findOne({ where: { id: businessId } });
+  }
+
   async inviteUser(businessId: string, inviterUserId: string, email: string, role: Exclude<BusinessUserRole, 'OWNER'> | 'VIEWER' | 'ADMIN' | 'FINANCE') {
     // Ensure inviter is an active member of the business
     const inviterMembership = await this.getUserMembership(inviterUserId, businessId);

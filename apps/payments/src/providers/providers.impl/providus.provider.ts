@@ -1,17 +1,26 @@
-import { Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { IBankingProvider, PayoutRequest, PayoutResult, TransferInEvent, VerifyTransaction, VirtualAccount, VirtualAccountRequest } from '@pkg/interfaces';
 import indexConfig from '../../configs/index.config';
 import { IProvidusCreateVARespDto } from '@pkg/dto';
-import axios from 'axios';
+import { HttpService } from '@nestjs/axios';
+import { firstValueFrom } from 'rxjs';
 
+@Injectable()
 export class ProvidusProvider implements IBankingProvider {
   private readonly logger = new Logger(ProvidusProvider.name);
+
+
+  constructor(
+    private readonly http: HttpService,
+  ) { }
+
+
   name(): string { return 'providus'; }
 
   async createVirtualAccount(input: VirtualAccountRequest): Promise<VirtualAccount> {
     this.logger.debug('Create virtual account providus');
     const url = `${indexConfig.providusConfig.baseUrl}/appdevapi/api/PiPCreateReservedAccountNumber`;
-    const resp = await axios.post<IProvidusCreateVARespDto>(url,
+    const resp = await firstValueFrom(this.http.post<IProvidusCreateVARespDto>(url,
       {
         account_name: input.accountName,
         bvn: '',
@@ -24,7 +33,7 @@ export class ProvidusProvider implements IBankingProvider {
           'X-Auth-Signature': indexConfig.providusConfig.signature,
         },
       },
-    );
+    ));
 
     // check for failure....
     if (resp.data.responseCode !== '00') {
@@ -60,7 +69,7 @@ export class ProvidusProvider implements IBankingProvider {
   async verifyTransaction(reference: string): Promise<VerifyTransaction<any>> {
     this.logger.debug(`Verifying transaction ${reference} via Providus`);
     try {
-      const response = await axios.get(`${indexConfig.providusConfig.baseUrl}/PiPverifyTransaction_sessionid`,
+      const response = await firstValueFrom(this.http.get(`${indexConfig.providusConfig.baseUrl}/PiPverifyTransaction_sessionid`,
         {
           params: {
             session_id: reference,
@@ -73,7 +82,7 @@ export class ProvidusProvider implements IBankingProvider {
           },
           timeout: 90 * 1000,
         }
-      );
+      ));
 
       if (response?.data?.responseCode !== '00') {
         this.logger.error(`Providus transaction verification failed: ${response.data.responseMessage}`);
@@ -112,7 +121,7 @@ export class ProvidusProvider implements IBankingProvider {
 
     try {
 
-      const response = await axios.post(`${indexConfig.providusConfig.transferBaseUrl}/NIPFundTransfer`,
+      const response = await firstValueFrom(this.http.post(`${indexConfig.providusConfig.transferBaseUrl}/NIPFundTransfer`,
         body,
         {
           headers: {
@@ -123,7 +132,7 @@ export class ProvidusProvider implements IBankingProvider {
           },
           timeout: 90 * 1000,
         }
-      );
+      ));
 
       // check for failure...
       if (
@@ -149,7 +158,7 @@ export class ProvidusProvider implements IBankingProvider {
   async banksList(): Promise<Array<{ name: string; code: string }>> {
     this.logger.debug('Fetching banks list from Providus');
     try {
-      const response = await axios.get(`${indexConfig.providusConfig.baseUrl}/GetNIPBanks`, {
+      const response = await firstValueFrom(this.http.get(`${indexConfig.providusConfig.baseUrl}/GetNIPBanks`, {
         headers: {
           'Content-Type': 'application/json',
           accept: 'application/json',
@@ -157,7 +166,7 @@ export class ProvidusProvider implements IBankingProvider {
           'X-Auth-Signature': indexConfig.providusConfig.signature,
         },
         timeout: 90 * 1000,
-      });
+      }));
 
       if (response?.data?.responseCode !== '00') {
         this.logger.error(`Failed to fetch banks list: ${response.data.responseMessage}`);
@@ -177,7 +186,7 @@ export class ProvidusProvider implements IBankingProvider {
   async resolveAccount(accountNumber: string, bankCode: string): Promise<{ accountName: string; accountNumber: string; bankCode: string; }> {
     this.logger.debug(`Validating NIP account ${accountNumber} with bank code ${bankCode} via Providus`);
     try {
-      const response = await axios.post(`${indexConfig.providusConfig.baseUrl}/GetNIPAccount`,
+      const response = await firstValueFrom(this.http.post(`${indexConfig.providusConfig.baseUrl}/GetNIPAccount`,
         {
           accountNumber: accountNumber,
           beneficiaryBank: bankCode,
@@ -193,7 +202,7 @@ export class ProvidusProvider implements IBankingProvider {
           },
           timeout: 90 * 1000,
         }
-      );
+      ));
 
       if (response?.data?.responseCode !== '00') {
         this.logger.error(`NIP account validation failed: ${response?.data?.responseMessage}`);
@@ -215,7 +224,7 @@ export class ProvidusProvider implements IBankingProvider {
 
   async payoutStatusCheck(transactionReference: string): Promise<{ status: 'PENDING' | 'SUCCESS' | 'FAILED'; providerReference: string; raw?: any; }> {
     try {
-      const response = await axios.get(`${indexConfig.providusConfig.transferBaseUrl}/payout/status`, {
+      const response = await firstValueFrom(this.http.get(`${indexConfig.providusConfig.transferBaseUrl}/payout/status`, {
         headers: {
           'Content-Type': 'application/json',
           accept: 'application/json',
@@ -223,7 +232,7 @@ export class ProvidusProvider implements IBankingProvider {
           'X-Auth-Signature': indexConfig.providusConfig.signature,
         },
         timeout: 90 * 1000,
-      });
+      }));
 
       if (response?.data?.responseCode !== '00') {
         this.logger.error(`Providus payout status check failed: ${response.data.responseMessage}`);

@@ -270,6 +270,14 @@ export class AuthService {
         if (context?.businessId) {
             accessPayload.biz_id = context.businessId;
             accessPayload.biz_role = context.businessRole;
+            // Enrich token with business name and status
+            try {
+                const biz = await this.businessService.getBusinessById(context.businessId);
+                if (biz) {
+                    accessPayload.biz_name = biz.name;
+                    accessPayload.biz_status = biz.status;
+                }
+            } catch { /* ignore enrichment errors */ }
         }
         const accessToken = this.jwtService.sign(accessPayload);
         const accessDecoded: any = this.jwtService.decode(accessToken);
@@ -286,6 +294,14 @@ export class AuthService {
         if (context?.businessId) {
             refreshPayload.biz_id = context.businessId;
             refreshPayload.biz_role = context.businessRole;
+            // Also include name/status for convenience during refresh validation
+            try {
+                const biz = await this.businessService.getBusinessById(context.businessId);
+                if (biz) {
+                    refreshPayload.biz_name = biz.name;
+                    refreshPayload.biz_status = biz.status;
+                }
+            } catch { /* ignore enrichment errors */ }
         }
         const refreshSecret = indexConfig.auth.refreshSecret;
         const refreshExpiresIn = indexConfig.auth.refreshExpiresIn;
@@ -310,10 +326,21 @@ export class AuthService {
         const user = await this.userRepository.findOneBy({ id: userId });
         if (!user) throw new Error('User not found');
 
-        // Issue new tokens with business context
+        // Fetch business details for name and status
+        const business = await this.businessService.getBusinessById(businessId);
+        if (!business) throw new Error('Business not found');
+
+        // Issue new tokens with business context (id + role)
         const { accessToken, refreshToken } = await this.issueTokensForUser(user, { businessId, businessRole: membership.role });
 
-        return ok({ token: accessToken, refreshToken, business: { id: businessId, role: membership.role } }, 'business_switched');
+        return ok(
+            {
+                token: accessToken,
+                refreshToken,
+                business: { id: businessId, name: business.name, status: business.status, role: membership.role },
+            },
+            'business_switched'
+        );
     }
 
     async forgotPasswordInit(payload: ForgotPasswordInitDto) {

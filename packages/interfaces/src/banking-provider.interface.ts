@@ -1,4 +1,4 @@
-export interface VirtualAccountRequest { accountName: string; currency: string; bvn?: string; metadata?: Record<string, any>; }
+export interface VirtualAccountRequest { accountName: string; currency: string; phone?: string; bvn?: string; metadata?: Record<string, any>; }
 export interface VirtualAccount { accountNumber: string; bankName: string; accountName: string; meta?: Record<string, any>; }
 export interface TransferInEvent { provider: string; reference: string; amount: number; currency: string; accountNumber: string; narration?: string; occurredAt: string; raw: any; }
 export interface PayoutRequest { destinationAccountName: string; amount: number; currency: string; destinationAccountNumber: string; destinationBankCode: string; destinationBankName?: string; narration?: string; reference: string; }

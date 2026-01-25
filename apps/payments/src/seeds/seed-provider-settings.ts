@@ -9,8 +9,8 @@ const dataSource = new DataSource({
 });
 
 const seedSettings: Array<Pick<Setting, 'key' | 'value'>> = [
-  { key: 'DEFAULT_BANKING_PROVIDER', value: 'budpay' },
-  { key: 'BANKING_PROVIDER_FAILOVER', value: 'providus,budpay' },
+  { key: 'default.system.provider', value: 'budpay' },
+  { key: 'banking.provider.failover', value: 'providus,budpay' },
 ];
 
 async function run() {

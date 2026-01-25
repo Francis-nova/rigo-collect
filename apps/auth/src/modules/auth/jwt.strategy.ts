@@ -13,6 +13,8 @@ export interface JwtPayload {
   jti: string;
   biz_id?: string;
   biz_role?: string;
+  biz_name?: string;
+  biz_status?: string;
 }
 
 @Injectable()
@@ -47,7 +49,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     }
     // Attach user and business context to request
     const business = payload.biz_id
-      ? { id: payload.biz_id, role: payload.biz_role, info: { id: payload.biz_id, role: payload.biz_role } }
+      ? { id: payload.biz_id, role: payload.biz_role, name: payload.biz_name, status: payload.biz_status }
       : undefined;
     return { userId: user.id, email: user.email, jti: payload.jti, business };
   }

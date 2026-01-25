@@ -67,7 +67,7 @@ export class Transaction {
   transactionId?: string; // this is provider transaction id...
 
   @Column({ nullable: true })
-  providerId?: string;
+  provider?: string;
 
   @Column({ nullable: true })
   description?: string;

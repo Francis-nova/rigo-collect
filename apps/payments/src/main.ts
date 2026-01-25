@@ -4,7 +4,7 @@ import { AppModule } from './app.module';
 import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 // HTTP health check is handled by HealthController registered in AppModule
 import indexConfig from './configs/index.config';
-import { ValidationPipe } from '@nestjs/common';
+import { BadRequestException, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AllExceptionsFilter } from '@pkg/common';
 
@@ -27,6 +27,16 @@ async function bootstrap() {
       whitelist: true,
       forbidNonWhitelisted: true,
       transform: true,
+      exceptionFactory: (errors: any[]) => {
+        const details = errors.map((e: any) => ({
+          field: e?.property,
+          constraints: e?.constraints ? Object.values(e.constraints) : [],
+          children: e?.children?.length ? e.children : undefined,
+        }));
+        const firstMessage = details.find(d => d.constraints?.length)?.constraints?.[0]
+          || 'validation_failed';
+        return new BadRequestException({ message: firstMessage, error: details });
+      },
     }),
   );
 
@@ -51,7 +61,7 @@ async function bootstrap() {
 
   // Global exception filter
   app.useGlobalFilters(new AllExceptionsFilter());
-
+  
   const document = SwaggerModule.createDocument(app, swaggerConfig, { extraModels: [] });
   SwaggerModule.setup('docs', app, document, {
     swaggerOptions: { persistAuthorization: true },
