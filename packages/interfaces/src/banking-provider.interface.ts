@@ -8,7 +8,6 @@ export interface VerifyTransaction<T> { status: 'SUCCESS'|'FAILED'|'PENDING'; re
 export interface IBankingProvider {
   name(): string;
   createVirtualAccount(input: VirtualAccountRequest): Promise<VirtualAccount>;
-  handleIncomingTransfer(event: any): Promise<TransferInEvent>;
   initiatePayout(input: PayoutRequest): Promise<PayoutResult>;
   banksList?(country?: string): Promise<Array<{ name: string; code: string }>>;
   resolveAccount?(accountNumber: string, bankCode: string): Promise<{ accountName: string; accountNumber: string; bankCode: string; }>;

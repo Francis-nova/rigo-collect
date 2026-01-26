@@ -8,6 +8,7 @@ import { TransactionsModule } from './modules/transactions/transactions.module';
 import { PayoutModule } from './modules/payout/payout.module';
 import { QueuesModule } from './modules/queue/queues.module';
 import { SettingsModule } from './settings/settings.module';
+import { WebhookModule } from './modules/webhook/webhook.module';
 import { ProfileModule } from './modules/profile/profile.module';
 
 @Module({
@@ -19,7 +20,8 @@ import { ProfileModule } from './modules/profile/profile.module';
     TransactionsModule,
     PayoutModule,
     QueuesModule,
-    ProfileModule
+    ProfileModule,
+    WebhookModule
   ],
   controllers: [HealthController]
 })

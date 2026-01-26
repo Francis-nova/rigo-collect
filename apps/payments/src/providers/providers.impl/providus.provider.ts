@@ -53,19 +53,6 @@ export class ProvidusProvider implements IBankingProvider {
     }
   }
 
-  async handleIncomingTransfer(event: any): Promise<TransferInEvent> {
-    return {
-      provider: 'providus',
-      reference: event?.reference || 'providus-ref',
-      amount: Number(event?.amount || 100),
-      currency: event?.currency || 'NGN',
-      accountNumber: event?.accountNumber || '9001234567',
-      narration: event?.narration,
-      occurredAt: new Date().toISOString(),
-      raw: event
-    };
-  }
-
   async verifyTransaction(reference: string): Promise<VerifyTransaction<any>> {
     this.logger.debug(`Verifying transaction ${reference} via Providus`);
     try {

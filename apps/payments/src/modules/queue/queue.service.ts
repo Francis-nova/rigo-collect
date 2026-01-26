@@ -9,6 +9,10 @@ export class QueueService {
   constructor(
     @InjectQueue('payouts')
     private readonly payoutQueue: Queue,
+    @InjectQueue('budpay')
+    private readonly budpayQueue: Queue,
+    @InjectQueue('providus')
+    private readonly providusQueue: Queue,
   ) { }
 
     /**
@@ -23,6 +27,32 @@ export class QueueService {
       },
       removeOnComplete: 50,
       removeOnFail: 100,
+      ...options,
+    });
+  }
+
+  /**
+   * Add a BudPay incoming webhook job
+   */
+  async addBudpayIncomingWebhookJob(data: any, options?: any) {
+    return await this.budpayQueue.add('webhook', data, {
+      attempts: 3,
+      backoff: { type: 'exponential', delay: 2000 },
+      removeOnComplete: 100,
+      removeOnFail: 200,
+      ...options,
+    });
+  }
+
+  /**
+   * Add a Providus incoming webhook job
+   */
+  async addProvidusWebhookJob(data: any, options?: any) {
+    return await this.providusQueue.add('webhook', data, {
+      attempts: 3,
+      backoff: { type: 'exponential', delay: 2000 },
+      removeOnComplete: 100,
+      removeOnFail: 200,
       ...options,
     });
   }

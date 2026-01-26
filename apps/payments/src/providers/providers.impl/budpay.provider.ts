@@ -118,19 +118,6 @@ export class BudPayProvider implements IBankingProvider {
     }
   }
 
-  async handleIncomingTransfer(event: any): Promise<TransferInEvent> {
-    return {
-      provider: 'budpay',
-      reference: event?.reference || 'budpay-ref',
-      amount: Number(event?.amount || 100),
-      currency: event?.currency || 'NGN',
-      accountNumber: event?.accountNumber || '7001234567',
-      narration: event?.narration,
-      occurredAt: new Date().toISOString(),
-      raw: event
-    };
-  }
-
   async verifyTransaction(reference: string): Promise<VerifyTransaction<any>> {
     try {
 
@@ -321,7 +308,7 @@ export class BudPayProvider implements IBankingProvider {
       return {
         status: this.getPayoutStatusFromBudPayStatus(resp.data?.data?.status || ''),
         providerReference: transactionReference,
-        raw: resp.data,
+        raw: resp.data?.data,
       };
 
     } catch (error) {
