@@ -13,6 +13,9 @@ import { PaymentProviderFactory } from '../../providers/provider.factory';
 import { BudPayProvider } from '../../providers/providers.impl/budpay.provider';
 import { ProvidusProvider } from '../../providers/providers.impl/providus.provider';
 import { BudpayProcessor } from './processors/budpay.processor';
+import { ProvidusProcessor } from './processors/providus.processor';
+import { RedisService } from '../../providers/redis.service';
+import { PayoutProviderFactory } from '../../providers/payout-provider.factory';
 
 @Module({
   imports: [
@@ -33,18 +36,22 @@ import { BudpayProcessor } from './processors/budpay.processor';
       },
     }),
 
-    BullModule.registerQueue({ name: 'payouts' }),
-    BullModule.registerQueue({ name: 'budpay' }),
-    BullModule.registerQueue({ name: 'providus' }),
+    BullModule.registerQueue({ name: 'payouts', defaultJobOptions: { attempts: 2 } }),
+    BullModule.registerQueue({ name: 'budpay', defaultJobOptions: { attempts: 2 } }),
+    BullModule.registerQueue({ name: 'providus', defaultJobOptions: { attempts: 2 } }),
+    BullModule.registerQueue({ name: 'transactions', defaultJobOptions: { attempts: 2 } }),
   ],
   providers: [
     QueueService,
     PayoutProcessor,
     BudpayProcessor,
+    ProvidusProcessor,
     // Provider factory and concrete providers required by PayoutProcessor
     PaymentProviderFactory,
+    PayoutProviderFactory,
     BudPayProvider,
     ProvidusProvider,
+    RedisService,
   ],
   exports: [BullModule, QueueService],
 })

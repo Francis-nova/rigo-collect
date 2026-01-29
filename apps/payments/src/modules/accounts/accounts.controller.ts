@@ -31,6 +31,19 @@ export class AccountsController {
     return this.accountsService.createAccount(req, payload);
   }
 
+  /**
+ * create sub-account endpoint...
+ */
+  @Post('subaccounts')
+  @ApiOperation({ summary: 'Create a new sub-account for an account' })
+  @UseGuards(AuthProfileGuard)
+  @ApiBearerAuth()
+  @ApiCreatedResponse({ description: 'Sub-account created successfully', type: SubAccount })
+  async createSubAccount(@Body() payload: CreateSubAccountDto, @Req() req: any) {
+    console.log('create sub-account payload', payload, req);
+    return this.accountsService.createSubAccount(req, payload);
+  }
+
   @Get(':accountId/subaccounts')
   @ApiOperation({ summary: 'List all active sub accounts for an account' })
   @UseGuards(AuthProfileGuard)
@@ -39,18 +52,5 @@ export class AccountsController {
 
   async listSubAccounts(@Param('accountId') accountId: string, @Req() req: any) {
     return await this.accountsService.listSubAccounts(req, accountId);
-  }
-
-  /**
-   * create sub-account endpoint...
-   */
-  @Post('subaccounts')
-  @ApiOperation({ summary: 'Create a new sub-account for an account' })
-  @UseGuards(AuthProfileGuard)
-  @ApiBearerAuth()
-  @ApiCreatedResponse({ description: 'Sub-account created successfully', type: SubAccount })
-  async createSubAccount(@Body() payload: CreateSubAccountDto, @Req() req: any) {
-    console.log('create sub-account payload', payload, req);
-    return this.accountsService.createSubAccount();
   }
 }

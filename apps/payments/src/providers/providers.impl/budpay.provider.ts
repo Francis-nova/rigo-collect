@@ -1,9 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { IBankingProvider, PayoutRequest, PayoutResult, TransferInEvent, VerifyTransaction, VirtualAccount, VirtualAccountRequest } from '@pkg/interfaces';
+import { IBankingProvider, PayoutRequest, PayoutResult, VerifyTransaction, VirtualAccount, VirtualAccountRequest } from '@pkg/interfaces';
 import indexConfig from '../../configs/index.config';
 import { HttpService } from '@nestjs/axios';
+import { RedisService } from '../redis.service';
 import { firstValueFrom } from 'rxjs';
 import { generateUniqueAlphaNumeric } from '../../common/helpers/app.helper';
+import crypto from 'crypto';
 
 type IBudResp<T> = { status: boolean; message: string; currency: string; data: T };
 type IBudCustomerCreateDto = {
@@ -40,6 +42,7 @@ export class BudPayProvider implements IBankingProvider {
 
   constructor(
     private readonly http: HttpService,
+    private readonly redis: RedisService,
   ) { }
 
   /**
@@ -136,7 +139,7 @@ export class BudPayProvider implements IBankingProvider {
       );
 
       return {
-        status: resp.data?.data?.status.toLowerCase() === 'success' ? 'SUCCESS' :
+        status: resp.data?.data?.status.toLowerCase() === 'successful' ? 'SUCCESS' :
           resp.data?.data?.status.toLowerCase() === 'failed' ? 'FAILED' : 'PENDING',
         reference: resp.data?.data?.reference,
         currency: resp.data?.data.currency,
@@ -147,6 +150,13 @@ export class BudPayProvider implements IBankingProvider {
       this.logger.error(`Error verifying transaction via BudPay: ${error}`);
       throw new Error('failed to verify transaction');
     }
+  }
+
+  private generateHmacSHA512Signature(data: any, secretKey: string) {
+    return crypto
+      .createHmac('sha512', secretKey)
+      .update(data, 'utf8')
+      .digest('base64');
   }
 
   async initiatePayout(input: PayoutRequest): Promise<PayoutResult> {
@@ -163,8 +173,10 @@ export class BudPayProvider implements IBankingProvider {
       },
     }
 
+    const signature = this.generateHmacSHA512Signature(JSON.stringify(body), indexConfig.budPayConfig.hmacSecretKey);
+
     try {
-      const url = `${indexConfig.budPayConfig.baseUrl}/api/v2/bank_transfer`;
+      const url = `${indexConfig.budPayConfig.baseUrl}/api/v1/bank_transfer`;
       const resp = await firstValueFrom(
         this.http.post<IBudResp<any>>(url,
           body,
@@ -173,7 +185,7 @@ export class BudPayProvider implements IBankingProvider {
               'Content-Type': 'application/json',
               accept: 'application/json',
               Authorization: `Bearer ${indexConfig.budPayConfig.secretKey}`,
-              Encryption: 'Signature_HMAC-SHA-512 '
+              Encryption: `Signature_HMAC-SHA-512 ${signature}`
             },
           },
         )
@@ -188,13 +200,22 @@ export class BudPayProvider implements IBankingProvider {
       };
 
     } catch (error: any) {
-      console.error('BudPay initiatePayout error', error);
+      console.log('BudPay initiatePayout error', error);
       this.logger.error('BudPay initiatePayout failed, falling back to stub', error as any);
-      throw new Error(error.message ??'failed to initiate payout');
+      throw new Error(error.message ?? 'failed to initiate payout');
     }
   }
 
   async banksList(country: string = 'NGN'): Promise<Array<{ name: string; code: string }>> {
+    const cacheKey = `budpay:banks:${country.toUpperCase()}`;
+    const cacheTtlSeconds = 7 * 24 * 60 * 60; // 7 days
+
+    const cached = await this.redis.get<Array<{ name: string; code: string }>>(cacheKey);
+    if (cached?.length) {
+      this.logger.debug(`BudPay banksList cache hit for ${country}`);
+      return cached;
+    }
+
     try {
       const url = `${indexConfig.budPayConfig.baseUrl}/api/v2/bank_list/${country}`;
       const resp = await firstValueFrom(
@@ -207,10 +228,13 @@ export class BudPayProvider implements IBankingProvider {
         }),
       )
 
-      return resp.data?.data?.map((bank: { bank_name: string; bank_code: string }) => ({
+      const mapped = resp.data?.data?.map((bank: { bank_name: string; bank_code: string }) => ({
         name: bank.bank_name,
         code: bank.bank_code,
-      }));
+      })) ?? [];
+
+      await this.redis.set(cacheKey, mapped, cacheTtlSeconds);
+      return mapped;
 
     } catch (error: any) {
       console.log('BudPay banksList error', error);
@@ -252,7 +276,7 @@ export class BudPayProvider implements IBankingProvider {
 
   private getPayoutStatusFromBudPayStatus(budPayStatus: string): 'PENDING' | 'SUCCESS' | 'FAILED' {
     switch (budPayStatus.toLowerCase()) {
-      case 'success':
+      case 'successful':
         return 'SUCCESS';
       case 'failed':
         return 'FAILED';
@@ -263,7 +287,7 @@ export class BudPayProvider implements IBankingProvider {
 
   async walletBalance(country: string = 'NGN'): Promise<{ currency: string; balance: number; }> {
     try {
-      const url = `${indexConfig.budPayConfig.baseUrl}/api/v2/wallet/balance/${country}`;
+      const url = `${indexConfig.budPayConfig.baseUrl}/api/v2/wallet_balance/${country}`;
       const resp = await firstValueFrom(
         this.http.get<IBudResp<{ currency: string; balance: number }>>(url,
           {
@@ -278,10 +302,11 @@ export class BudPayProvider implements IBankingProvider {
 
       return {
         currency: resp.data?.data?.currency,
-        balance: resp.data?.data?.balance,
+        balance: Number(resp.data?.data?.balance ?? 0), 
       };
 
     } catch (error: any) {
+      console.log('BudPay walletBalance error', error);
       this.logger.error('BudPay walletBalance failed, falling back to stub', error as any);
       throw new Error('failed to fetch wallet balance');
     }

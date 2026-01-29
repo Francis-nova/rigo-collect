@@ -4,7 +4,7 @@ import { Repository } from "typeorm";
 import { Processor, Process } from '@nestjs/bull';
 import { InjectRepository } from "@nestjs/typeorm";
 import { ITransactionStatus, ITransactionType, Transaction } from "../../../entities/transactions.entity";
-import { PaymentProviderFactory } from "apps/payments/src/providers/provider.factory";
+import { PayoutProviderFactory } from "apps/payments/src/providers/payout-provider.factory";
 
 @Injectable()
 @Processor('payouts')
@@ -17,19 +17,20 @@ export class PayoutProcessor {
 
     @InjectRepository(Transaction)
     private readonly transactionRepository: Repository<Transaction>,
-    private readonly providerFactory: PaymentProviderFactory,
+    private readonly providerFactory: PayoutProviderFactory,
   ) { }
 
   @Process('payout')
   async handlePayoutJob(job: any) {
     try {
       const payoutData = job.data;
+      this.logger.log('Processing payout job with data:', payoutData);
       this.logger.debug(`Processing payout job for account: ${payoutData.accountNumber}`);
 
       // get transaction...
       const transaction = await this.transactionRepository.findOne({
         where: {
-          reference: payoutData.transactionRef,
+          reference: payoutData.reference,
           status: ITransactionStatus.PENDING,
           type: ITransactionType.DEBIT,
         },
@@ -37,14 +38,15 @@ export class PayoutProcessor {
       })
 
       if (!transaction) {
-        this.logger.error(`Transaction with reference ${payoutData.transactionRef} not found`);
-        throw new Error(`Transaction with reference ${payoutData.transactionRef} not found`);
+        this.logger.error(`Transaction with reference ${payoutData.reference} not found`);
+        throw new Error(`Transaction with reference ${payoutData.reference} not found`);
       }
 
       // get provider
       const provider = await this.providerFactory.getProvider();
       this.logger.debug(`Resolving account via provider: ${provider.name()}`);
       if (!provider || typeof provider.resolveAccount !== 'function') {
+        this.logger.error('Could not resolve bank account');
         throw new Error('Could not resolve bank account');
       }
 

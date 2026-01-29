@@ -12,5 +12,6 @@ export interface IBankingProvider {
   banksList?(country?: string): Promise<Array<{ name: string; code: string }>>;
   resolveAccount?(accountNumber: string, bankCode: string): Promise<{ accountName: string; accountNumber: string; bankCode: string; }>;
   verifyTransaction?(reference: string): Promise<VerifyTransaction<any>>;
+  walletBalance?(currencyCode: string): Promise<{ currency: string; balance: number; }>;
   payoutStatusCheck?(transactionReference: string): Promise<{ status: 'PENDING'|'SUCCESS'|'FAILED'; providerReference: string; raw?: any; }>;
 }

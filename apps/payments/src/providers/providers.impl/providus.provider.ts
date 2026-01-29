@@ -1,8 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { IBankingProvider, PayoutRequest, PayoutResult, TransferInEvent, VerifyTransaction, VirtualAccount, VirtualAccountRequest } from '@pkg/interfaces';
+import { IBankingProvider, PayoutRequest, PayoutResult, VerifyTransaction, VirtualAccount, VirtualAccountRequest } from '@pkg/interfaces';
 import indexConfig from '../../configs/index.config';
 import { IProvidusCreateVARespDto } from '@pkg/dto';
 import { HttpService } from '@nestjs/axios';
+import { RedisService } from '../redis.service';
 import { firstValueFrom } from 'rxjs';
 
 @Injectable()
@@ -12,10 +13,17 @@ export class ProvidusProvider implements IBankingProvider {
 
   constructor(
     private readonly http: HttpService,
+    private readonly redis: RedisService,
   ) { }
 
-
   name(): string { return 'providus'; }
+
+  verifySignature(signature: string): boolean {
+    if (!signature || signature !== indexConfig.providusConfig.signature) {
+      return false;
+    }
+    return true;
+  }
 
   async createVirtualAccount(input: VirtualAccountRequest): Promise<VirtualAccount> {
     this.logger.debug('Create virtual account providus');
@@ -70,11 +78,6 @@ export class ProvidusProvider implements IBankingProvider {
           timeout: 90 * 1000,
         }
       ));
-
-      if (response?.data?.responseCode !== '00') {
-        this.logger.error(`Providus transaction verification failed: ${response.data.responseMessage}`);
-        throw new Error('Providus transaction verification failed');
-      }
 
       this.logger.debug(`Providus transaction verified: ${reference}`, response?.data);
 
@@ -143,6 +146,15 @@ export class ProvidusProvider implements IBankingProvider {
   }
 
   async banksList(): Promise<Array<{ name: string; code: string }>> {
+    const cacheKey = 'providus:banks:NGN';
+    const cacheTtlSeconds = 7 * 24 * 60 * 60; // 7 days
+
+    const cached = await this.redis.get<Array<{ name: string; code: string }>>(cacheKey);
+    if (cached?.length) {
+      this.logger.debug('Providus banksList cache hit');
+      return cached;
+    }
+
     this.logger.debug('Fetching banks list from Providus');
     try {
       const response = await firstValueFrom(this.http.get(`${indexConfig.providusConfig.baseUrl}/GetNIPBanks`, {
@@ -160,10 +172,13 @@ export class ProvidusProvider implements IBankingProvider {
         throw new Error('Failed to fetch banks list');
       }
 
-      return response?.data?.banks.map((bank: any) => ({
+      const mapped = response?.data?.banks.map((bank: any) => ({
         name: bank.name,
         code: bank.code,
-      }));
+      })) ?? [];
+
+      await this.redis.set(cacheKey, mapped, cacheTtlSeconds);
+      return mapped;
     } catch (error: any) {
       this.logger.error(`Error fetching banks list from Providus: ${error.message}`);
       throw new Error('Failed to fetch banks list');

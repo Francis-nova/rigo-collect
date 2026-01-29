@@ -10,6 +10,7 @@ import { QueuesModule } from './modules/queue/queues.module';
 import { SettingsModule } from './settings/settings.module';
 import { WebhookModule } from './modules/webhook/webhook.module';
 import { ProfileModule } from './modules/profile/profile.module';
+import { SchedulerModule } from './modules/scheduler/scheduler.module';
 
 @Module({
   imports: [
@@ -21,7 +22,8 @@ import { ProfileModule } from './modules/profile/profile.module';
     PayoutModule,
     QueuesModule,
     ProfileModule,
-    WebhookModule
+    WebhookModule,
+    SchedulerModule,
   ],
   controllers: [HealthController]
 })

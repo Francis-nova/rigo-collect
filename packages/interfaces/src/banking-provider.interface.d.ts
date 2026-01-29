@@ -1,7 +1,4 @@
-export interface VirtualAccountRequest {
-    merchantId: string;
-    currency: string;
-}
+export interface VirtualAccountRequest { accountName: string; currency: string; phone?: string; bvn?: string; metadata?: Record<string, any>; }
 export interface VirtualAccount {
     accountNumber: string;
     bankName: string;
@@ -19,22 +16,28 @@ export interface TransferInEvent {
     raw: any;
 }
 export interface PayoutRequest {
-    merchantId: string;
+    destinationAccountName: string;
     amount: number;
     currency: string;
     destinationAccountNumber: string;
     destinationBankCode: string;
+    destinationBankName?: string;
     narration?: string;
-    idempotencyKey: string;
+    reference: string;
 }
 export interface PayoutResult {
     status: 'PENDING' | 'SUCCESS' | 'FAILED';
     providerReference: string;
     raw?: any;
 }
+export interface VerifyTransaction<T> { status: 'SUCCESS'|'FAILED'|'PENDING'; reference: string; amount?: number; currency?: string; details?: T; raw?: any; }
 export interface IBankingProvider {
     name(): string;
     createVirtualAccount(input: VirtualAccountRequest): Promise<VirtualAccount>;
-    handleIncomingTransfer(event: any): Promise<TransferInEvent>;
     initiatePayout(input: PayoutRequest): Promise<PayoutResult>;
+    banksList?(country?: string): Promise<Array<{ name: string; code: string }>>;
+    resolveAccount?(accountNumber: string, bankCode: string): Promise<{ accountName: string; accountNumber: string; bankCode: string; }>;
+    verifyTransaction?(reference: string): Promise<VerifyTransaction<any>>;
+    walletBalance?(currencyCode: string): Promise<{ currency: string; balance: number; }>;
+    payoutStatusCheck?(transactionReference: string): Promise<{ status: 'PENDING'|'SUCCESS'|'FAILED'; providerReference: string; raw?: any; }>;
 }

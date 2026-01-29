@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PaymentProviderFactory } from '../../providers/provider.factory';
+import { PayoutProviderFactory } from '../../providers/payout-provider.factory';
 import { ResolveAccountDto } from './dtos/reslove-account.dto';
 import { SettingsService } from '../../settings/settings.service';
 import { calculateBankTransferFee, calculateVAT } from '../../common/helpers/app.helper';
@@ -19,7 +19,7 @@ export class PayoutService {
   private readonly logger = new Logger(PayoutService.name);
 
   constructor(
-    private readonly providerFactory: PaymentProviderFactory,
+    private readonly payoutProviderFactory: PayoutProviderFactory,
     private readonly dataSource: DataSource,
     private queueService: QueueService,
     private readonly profileService: ProfileService,
@@ -28,7 +28,7 @@ export class PayoutService {
 
   async getBankList(country: string = 'NGN'): Promise<Array<{ name: string; code: string }>> {
     try {
-      const provider = await this.providerFactory.getProvider();
+      const provider = await this.payoutProviderFactory.getProvider();
       this.logger.debug(`Fetching bank list from provider: ${provider.name()}`);
       if (!provider || typeof provider.banksList !== 'function') {
         throw new Error('Could not fetch bank list');
@@ -40,9 +40,9 @@ export class PayoutService {
     }
   }
 
-  async resolveAccount(payload: ResolveAccountDto): Promise<{ accountName: string; accountNumber: string; bankCode: string; }> {
+  async resolveAccount(payload: ResolveAccountDto) {
     try {
-      const provider = await this.providerFactory.getProvider();
+      const provider = await this.payoutProviderFactory.getProvider();
       this.logger.debug(`Resolving account via provider: ${provider.name()}`);
       if (!provider || typeof provider.resolveAccount !== 'function') {
         throw new Error('Could not resolve bank account');
@@ -121,7 +121,7 @@ export class PayoutService {
       const transactionRef = `payout-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
       // get provider to initiate payout
-      const provider = await this.providerFactory.getProvider();
+      const provider = await this.payoutProviderFactory.getProvider();
       return await useQueryRunner(this.dataSource, async (queryRunner) => {
         // get account id
         const accountRepo = queryRunner.getRepository(Account);
@@ -201,6 +201,7 @@ export class PayoutService {
             type: ITransactionType.DEBIT,
             description: 'Payout failed due to insufficient balance',
             processedAt: new Date(),
+            provider: provider.name(),
             metadata: {
               reason: 'Insufficient wallet balance (locked) for payout',
               destination: payload.destination,
@@ -211,6 +212,15 @@ export class PayoutService {
           throw new Error('Insufficient account balance for payout');
         }
 
+        //  check provider balance if supported
+        if (typeof provider.walletBalance === 'function') {
+          const providerBalance = await provider.walletBalance(currency.code);
+          if (providerBalance?.balance < totalAmount) {
+            this.logger.error(`Payout provider ${provider.name()} has insufficient balance: ${providerBalance?.balance} ${providerBalance?.currency}`);
+            throw new Error(`Can not process payout at the moment. Please try again later.`);
+          }
+        }
+
         const beforeBalance = Number(lockedAccount.balance);
         const afterBalance = beforeBalance - totalAmount;
         await queryRunner.update(Account, { id: account.id }, { balance: afterBalance });
@@ -218,7 +228,7 @@ export class PayoutService {
         // resolve account details
         const resolvedAccount = await this.resolveAccount(payload.destination);
 
-        if (!resolvedAccount || !resolvedAccount.accountName) {
+        if (!resolvedAccount?.accountName) {
           throw new Error('Failed to resolve destination account details');
         }
 
@@ -237,6 +247,7 @@ export class PayoutService {
           type: ITransactionType.DEBIT,
           description: payload.narration || `Payout ${account.currency.code} ${payload.amount} - ${resolvedAccount.accountName}`,
           processedAt: new Date(),
+          provider: provider.name(),
           metadata: {
             destination: payload.destination,
             currency: payload.currency,

@@ -10,11 +10,12 @@ import { BudPayProvider } from '../../providers/providers.impl/budpay.provider';
 import { ProvidusProvider } from '../../providers/providers.impl/providus.provider';
 import { SettingsModule } from '../../settings/settings.module';
 import { Currency } from '../../entities/currency.entity';
+import { RedisService } from '../../providers/redis.service';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Account, SubAccount, Currency]), SettingsModule, HttpModule],
   controllers: [AccountsController],
-  providers: [AccountsService, PaymentProviderFactory, BudPayProvider, ProvidusProvider],
+  providers: [AccountsService, PaymentProviderFactory, BudPayProvider, ProvidusProvider, RedisService],
   exports: [AccountsService],
 })
 export class AccountsModule {}

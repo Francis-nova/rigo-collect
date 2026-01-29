@@ -6,11 +6,16 @@ import { ProvidusProvider } from '../../providers/providers.impl/providus.provid
 import { QueuesModule } from '../queue/queues.module';
 import { WebhookController } from './webhook.controller';
 import { WebhookService } from './webhook.service';
+import { RedisService } from '../../providers/redis.service';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { Transaction } from '../../entities/transactions.entity';
+import { Account } from '../../entities/account.entity';
+import { SubAccount } from '../../entities/sub-account.entity';
 
 @Module({
-  imports: [HttpModule, QueuesModule],
+  imports: [HttpModule, QueuesModule, TypeOrmModule.forFeature([Transaction, Account, SubAccount])],
   controllers: [WebhookController],
-  providers: [WebhookService, BudPayProvider, ProvidusProvider],
+  providers: [WebhookService, BudPayProvider, ProvidusProvider, RedisService],
   exports: [WebhookService],
 })
 export class WebhookModule {}

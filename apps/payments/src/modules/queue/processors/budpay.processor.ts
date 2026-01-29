@@ -56,6 +56,7 @@ export class BudpayProcessor {
    */
   async handleTransaction(data: any, notifyType: string) {
     // Implementation for handling transaction notifications
+    throw new Error('Method not implemented.');
   }
 
   /**
@@ -75,13 +76,13 @@ export class BudpayProcessor {
     }
 
     // validate the payout details with BudPay
-    const validatepayout = await this.provider.payoutStatusCheck(data?.reference);
+    const validatePayout = await this.provider.payoutStatusCheck(data?.reference);
 
     // handle failed payout
-    if (validatepayout?.raw?.status === 'failed') {
+    if (validatePayout?.raw?.status === 'failed') {
       // mark original transaction failed
       transaction.status = ITransactionStatus.FAILED;
-      transaction.metadata = { ...transaction.metadata, providerResponse: validatepayout?.raw };
+      transaction.metadata = { ...transaction.metadata, providerResponse: validatePayout?.raw };
       await this.txnRepo.save(transaction);
 
       // reverse funds back to account and record reversal transaction
@@ -116,7 +117,7 @@ export class BudpayProcessor {
             feeCredited: fee,
             beforeBalance,
             afterBalance,
-            providerResponse: validatepayout?.raw,
+            providerResponse: validatePayout?.raw,
           },
         });
         await this.txnRepo.save(reversal);
@@ -130,9 +131,9 @@ export class BudpayProcessor {
     }
 
     // handle successful payout
-    if (validatepayout?.raw?.status === 'successful') {
+    if (validatePayout?.raw?.status === 'successful') {
       transaction.status = ITransactionStatus.COMPLETED;
-      transaction.metadata = { ...transaction.metadata, providerResponse: validatepayout?.raw };
+      transaction.metadata = { ...transaction.metadata, providerResponse: validatePayout?.raw };
       await this.txnRepo.save(transaction);
 
       // send notification to business/customer
@@ -144,6 +145,62 @@ export class BudpayProcessor {
    * Credit customer wallet when virtual account funding notification is received...
    *  */
   async handleVirtualAccount(data: any, notifyType: string) {
-    // Implementation for handling virtual account notifications
+    try {
+      // Implementation for handling virtual account notifications
+      const validateTransaction = await this.provider.verifyTransaction(data?.reference);
+
+      if (validateTransaction?.raw?.status !== 'successful') {
+        this.logger.warn('Virtual account funding transaction not successful', { reference: data?.reference });
+        throw new Error('Virtual account funding transaction not successful');
+      }
+
+      // Further implementation to credit customer wallet
+      // get the sub account linked to the virtual account
+      const subAccount = await this.subRepo.findOne({ where: { accountNumber: validateTransaction?.details?.transferDetails?.craccount } });
+      if (!subAccount) {
+        this.logger.warn('Sub-account not found for virtual account', { accountNumber: validateTransaction?.details?.transferDetails?.craccount });
+        throw new Error('Sub-account not found for virtual account');
+      }
+
+      // get the main account
+      const mainAccount = await this.accountRepo.findOne({ where: { id: subAccount.accountId } });
+      if (!mainAccount) {
+        this.logger.warn('Main account not found for sub-account', { subAccountId: subAccount.id });
+        throw new Error('Main account not found for sub-account');
+      }
+
+      // credit the main account
+      const beforeBalance = Number(mainAccount.balance);
+      const afterBalance = beforeBalance + Number(validateTransaction.amount);
+      await this.accountRepo.update({ id: mainAccount.id }, { balance: afterBalance });
+
+      // record the transaction
+      const transaction = this.txnRepo.create({
+        accountId: mainAccount.id,
+        amount: Number(validateTransaction.amount),
+        currencyId: mainAccount.currencyId,
+        reference: validateTransaction.reference,
+        status: ITransactionStatus.COMPLETED,
+        type: ITransactionType.CREDIT,
+        description: `CR - ${validateTransaction?.details?.transferDetails?.narration}  #${subAccount.accountNumber}`,
+        processedAt: new Date(),
+        metadata: {
+          providerResponse: validateTransaction.raw,
+          beforeBalance,
+          afterBalance,
+        },
+      });
+      await this.txnRepo.save(transaction);
+
+      this.logger.log(`Credited account #${mainAccount.id} with ${validateTransaction.amount} from virtual account funding.`);
+
+      // send notification to business/customer
+      // Implementation for sending notification with rabbitmq queue message to the post-office service
+
+      return true;
+    } catch (err: any) {
+      this.logger.error('Error handling BudPay virtual account webhook', err?.stack || err);
+      throw err;
+    }
   }
 }

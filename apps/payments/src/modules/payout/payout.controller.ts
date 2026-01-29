@@ -30,7 +30,8 @@ export class PayoutController {
   async resolveAccount(
     @Body() payload: ResolveAccountDto,
   ) {
-    return this.payoutService.resolveAccount(payload);
+    const resolve = await this.payoutService.resolveAccount(payload);
+    return ok(resolve);
   }
 
   @Post('/fee')

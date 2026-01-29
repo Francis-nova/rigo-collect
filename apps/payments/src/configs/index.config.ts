@@ -23,6 +23,7 @@ const budPayConfig = {
   secretKey: process.env.BUDPAY_API_SECRET_KEY || '',
   publicKey: process.env.BUDPAY_API_PUBLIC_KEY || '',
   baseUrl: process.env.BUDPAY_BASE_URL || 'https://api.budpay.com',
+  hmacSecretKey: process.env.BUDPAY_HMAC_SECRET_KEY || '',
 };
 
 const providusConfig = {

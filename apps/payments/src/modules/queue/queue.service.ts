@@ -13,6 +13,8 @@ export class QueueService {
     private readonly budpayQueue: Queue,
     @InjectQueue('providus')
     private readonly providusQueue: Queue,
+    @InjectQueue('transactions')
+    private readonly transactionsQueue: Queue,
   ) { }
 
     /**
@@ -51,6 +53,19 @@ export class QueueService {
     return await this.providusQueue.add('webhook', data, {
       attempts: 3,
       backoff: { type: 'exponential', delay: 2000 },
+      removeOnComplete: 100,
+      removeOnFail: 200,
+      ...options,
+    });
+  }
+
+  /**
+   * Add a transaction job (e.g., scheduled retries/reconciliation)
+   */
+  async addTransactionJob(data: any, options?: any) {
+    return await this.transactionsQueue.add('transaction', data, {
+      attempts: 2,
+      backoff: { type: 'fixed', delay: 2000 },
       removeOnComplete: 100,
       removeOnFail: 200,
       ...options,

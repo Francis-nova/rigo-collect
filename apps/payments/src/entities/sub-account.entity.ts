@@ -1,5 +1,6 @@
 import { Column, CreateDateColumn, Entity, Index, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { Account } from './account.entity';
+import { Currency } from './currency.entity';
 import { AccountStatus } from './types/account-status.enum';
 
 @Entity({ name: 'sub_accounts' })
@@ -30,6 +31,9 @@ export class SubAccount {
 
   @Column({ type: 'uuid' })
   currencyId!: string;
+
+  @ManyToOne(() => Currency, (currency) => currency.accounts)
+  currency!: Currency;
 
   @Index()
   @Column({ type: 'uuid' })
