@@ -47,11 +47,12 @@ export class TransactionProcessor {
       }
 
       switch (transaction.provider) {
-        case 'ibanq':
+        case 'providus':
           await this.handleProvidusTransaction(transaction);
           break;
-        case 'optimus':
-          throw new Error(`Unsupported provider ${transaction.provider} for payout`);
+        case 'budpay':
+          await this.handleBudpayTransaction(transaction);
+          break;
         default:
           this.logger.error(`Unsupported provider ${transaction.provider} for payout`);
           throw new Error(`Unsupported provider ${transaction.provider} for payout`);
@@ -67,6 +68,13 @@ export class TransactionProcessor {
   private async handleProvidusTransaction(transaction: Transaction) {
     this.logger.log(`Handling PROVIDUS transaction ${transaction.id}`);
     // Implementation for handling PROVIDUS transactions
+    throw new Error('Method not implemented.');
+  }
+
+  // handle budpay Transactions here...
+  private async handleBudpayTransaction(transaction: Transaction) {
+    this.logger.log(`Handling BUDPAY transaction ${transaction.id}`);
+    // Implementation for handling BUDPAY transactions
     throw new Error('Method not implemented.');
   }
 }

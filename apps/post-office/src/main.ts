@@ -2,7 +2,7 @@ import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { MicroserviceOptions, Transport } from '@nestjs/microservices';
-import { ConfigService } from '@nestjs/config';
+import { ConfigService } from '@pkg/config';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -11,7 +11,13 @@ async function bootstrap() {
 
   app.connectMicroservice<MicroserviceOptions>({
     transport: Transport.RMQ,
-    options: { urls: [rabbitUrl], queue: 'post-office', queueOptions: { durable: true } }
+    options: {
+      urls: [rabbitUrl],
+      queue: 'post-office',
+      queueOptions: { durable: true },
+      prefetchCount: 5,
+      noAck: false
+    }
   });
 
   await app.startAllMicroservices();

@@ -1,0 +1,13 @@
+version: '3.9'
+
+services:
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: mailhog
+    restart: unless-stopped
+    ports:
+      - '1025:1025' # SMTP port
+      - '8025:8025' # Web UI
+    environment:
+      MH_CORS_ORIGIN: '*'
+      MH_STORAGE: maildir

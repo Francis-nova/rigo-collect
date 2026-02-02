@@ -14,7 +14,13 @@ const loadEnv = () => ({
     NODE_ENV: process.env.NODE_ENV ?? 'development',
     PORT: parseInt(process.env.PORT || '3000', 10),
     RABBITMQ_URL: process.env.RABBITMQ_URL || 'amqp://localhost:5672',
-    BANKING_PROVIDER: process.env.BANKING_PROVIDER || 'mock'
+    BANKING_PROVIDER: process.env.BANKING_PROVIDER || 'mock',
+    SMTP_HOST: process.env.SMTP_HOST || '127.0.0.1',
+    SMTP_PORT: parseInt(process.env.SMTP_PORT || '1025', 10),
+    SMTP_SECURE: process.env.SMTP_SECURE === 'true',
+    SMTP_USER: process.env.SMTP_USER || '',
+    SMTP_PASS: process.env.SMTP_PASS || '',
+    MAIL_FROM: process.env.MAIL_FROM || 'no-reply@rigo-collect.com'
 });
 let ConfigModule = class ConfigModule {
 };

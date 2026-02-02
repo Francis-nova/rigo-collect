@@ -21,12 +21,12 @@ export class signinDto {
 
 export class signupDto {
     @IsNotEmpty() @IsString() @ApiProperty({
-        description: 'Email address used to sign in',
-        example: 'francis@example.com',
+        description: 'First name of the user',
+        example: 'Francis',
     }) firstName!: string;
     @IsNotEmpty() @IsString() @ApiProperty({
         description: 'Last name of the user',
-        example: 'Francis',
+        example: 'Deogra',
     }) lastName!: string;
     @IsNotEmpty() @IsEmail() @ApiProperty({
         description: 'Email address used to sign in',

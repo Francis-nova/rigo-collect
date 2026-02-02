@@ -26,8 +26,8 @@ export class TransactionResource {
           countryCode: transaction.account.currency.countryCode,
         },
         meta: {
-          reference: transaction.account.metadata.name,
-          status: transaction.account.metadata.status,
+          reference: transaction.account?.metadata?.name,
+          status: transaction.account?.metadata?.status,
         },
       },
     };
