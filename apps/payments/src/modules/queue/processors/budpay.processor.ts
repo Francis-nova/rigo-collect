@@ -6,6 +6,7 @@ import { SubAccount } from '../../../entities/sub-account.entity';
 import { Account } from '../../../entities/account.entity';
 import { ITransactionStatus, ITransactionType, Transaction } from '../../../entities/transactions.entity';
 import { BudPayProvider } from '../../../providers/providers.impl/budpay.provider';
+import { RabbitPublisherService } from '../../../providers/rabbit-publisher.service';
 
 @Injectable()
 @Processor('budpay')
@@ -20,6 +21,7 @@ export class BudpayProcessor {
     @InjectRepository(Transaction)
     private readonly txnRepo: Repository<Transaction>,
     private readonly provider: BudPayProvider,
+    private readonly publisher: RabbitPublisherService,
   ) { }
 
   /**
@@ -125,8 +127,21 @@ export class BudpayProcessor {
 
       this.logger.log(`Reversed failed payout #${transaction.reference}. Credited back ${creditBack}`);
 
-      // send notification to business/customer
-      // Implementation for sending notification with rabbitmq queue message to the post-office service
+      // send notification to business/customer via RabbitMQ (post-office)
+      const recipients = [
+        (transaction.metadata as any)?.notifyEmail,
+        (transaction.metadata as any)?.notifyBusinessEmail,
+        (transaction.metadata as any)?.notifyOwnerEmail,
+      ].filter((e) => !!e);
+      await this.publishForRecipients('payments.payout.failed', recipients, {
+        subject: 'Payout Failed',
+        amount: Number(transaction.amount),
+        currency: (transaction.metadata as any)?.currency || 'NGN',
+        reference: transaction.reference!,
+        date: new Date().toISOString(),
+        status: 'FAILED',
+        beneficiary: (transaction.metadata as any)?.destination,
+      });
       return;
     }
 
@@ -136,8 +151,21 @@ export class BudpayProcessor {
       transaction.metadata = { ...transaction.metadata, providerResponse: validatePayout?.raw };
       await this.txnRepo.save(transaction);
 
-      // send notification to business/customer
-      // Implementation for sending notification with rabbitmq queue message to the post-office service
+      // send notification to business/customer via RabbitMQ (post-office)
+      const recipients = [
+        (transaction.metadata as any)?.notifyEmail,
+        (transaction.metadata as any)?.notifyBusinessEmail,
+        (transaction.metadata as any)?.notifyOwnerEmail,
+      ].filter((e) => !!e);
+      await this.publishForRecipients('payments.payout.success', recipients, {
+        subject: 'Payout Successful',
+        amount: Number(transaction.amount),
+        currency: (transaction.metadata as any)?.currency || 'NGN',
+        reference: transaction.reference!,
+        date: new Date().toISOString(),
+        status: 'SUCCESS',
+        beneficiary: (transaction.metadata as any)?.destination,
+      });
     }
   }
 
@@ -194,13 +222,49 @@ export class BudpayProcessor {
 
       this.logger.log(`Credited account #${mainAccount.id} with ${validateTransaction.amount} from virtual account funding.`);
 
-      // send notification to business/customer
-      // Implementation for sending notification with rabbitmq queue message to the post-office service
+      // publish pay-in success notifications to business and owner if available in metadata
+      const notifyList: string[] = [];
+      const meta = (mainAccount.metadata || {}) as any;
+      if (Array.isArray(meta.notifyEmails)) notifyList.push(...meta.notifyEmails);
+      if (meta.notifyBusinessEmail) notifyList.push(meta.notifyBusinessEmail);
+      if (meta.notifyOwnerEmail) notifyList.push(meta.notifyOwnerEmail);
+
+      const uniqueRecipients = Array.from(new Set(notifyList.filter(Boolean)));
+      if (uniqueRecipients.length) {
+        for (const to of uniqueRecipients) {
+          await this.publisher.publish('payments.collection.received', {
+            to,
+            subject: 'Payment Received',
+            amount: Number(validateTransaction.amount),
+            currency: validateTransaction.currency || mainAccount.currency?.code || 'NGN',
+            reference: validateTransaction.reference,
+            date: new Date().toISOString(),
+            status: 'SUCCESS',
+            payer: {
+              name: validateTransaction?.details?.transferDetails?.payerName,
+              narration: validateTransaction?.details?.transferDetails?.narration,
+            },
+          });
+        }
+      } else {
+        this.logger.warn('No notification recipients found in account metadata for pay-in');
+      }
 
       return true;
     } catch (err: any) {
       this.logger.error('Error handling BudPay virtual account webhook', err?.stack || err);
       throw err;
+    }
+  }
+  private async publishForRecipients(routingKey: string, recipients: string[], basePayload: any) {
+    for (const to of recipients) {
+      const payload = { ...basePayload, to };
+      try {
+        await this.publisher.publish(routingKey, payload);
+        this.logger.debug(`Published ${routingKey} to ${to} for ${payload.reference}`);
+      } catch (err) {
+        this.logger.error(`Failed to publish ${routingKey} to ${to}`, err as any);
+      }
     }
   }
 }

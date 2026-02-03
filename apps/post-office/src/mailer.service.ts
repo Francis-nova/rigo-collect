@@ -30,6 +30,25 @@ export interface PasswordResetCompletePayload extends BaseMailPayload {
   changedAt: string;
 }
 
+export interface PayoutMailPayload extends BaseMailPayload {
+  amount: number | string;
+  currency: string;
+  reference: string;
+  date: string | Date;
+  status: 'SUCCESS' | 'FAILED';
+  beneficiary?: { name?: string; bankName?: string; accountNumber?: string };
+  retryMessage?: string;
+}
+
+export interface PayInMailPayload extends BaseMailPayload {
+  amount: number | string;
+  currency: string;
+  reference: string;
+  date: string | Date;
+  status: 'SUCCESS';
+  payer?: { name?: string; narration?: string };
+}
+
 @Injectable()
 export class MailerService {
   private readonly logger = new Logger(MailerService.name);
@@ -120,6 +139,67 @@ export class MailerService {
         year: new Date().getFullYear()
       },
       text: `Your password was reset on ${formattedChangedAt}.`
+    });
+  }
+
+  async sendPayoutSuccessEmail(payload: PayoutMailPayload) {
+    const formattedDate = this.formatDate(payload.date);
+    await this.dispatch({
+      to: payload.to,
+      subject: payload.subject,
+      template: 'payout-success',
+      context: {
+        subject: payload.subject,
+        firstName: payload.firstName,
+        amount: payload.amount,
+        currency: payload.currency,
+        reference: payload.reference,
+        formattedDate,
+        beneficiary: payload.beneficiary,
+        year: new Date().getFullYear()
+      },
+      text: `Payout SUCCESS: ${payload.amount} ${payload.currency} | Ref ${payload.reference} | ${formattedDate}`
+    });
+  }
+
+  async sendPayoutFailedEmail(payload: PayoutMailPayload) {
+    const formattedDate = this.formatDate(payload.date);
+    await this.dispatch({
+      to: payload.to,
+      subject: payload.subject,
+      template: 'payout-failed',
+      context: {
+        subject: payload.subject,
+        firstName: payload.firstName,
+        amount: payload.amount,
+        currency: payload.currency,
+        reference: payload.reference,
+        formattedDate,
+        beneficiary: payload.beneficiary,
+        retryMessage: payload.retryMessage,
+        year: new Date().getFullYear()
+      },
+      text: `Payout FAILED: ${payload.amount} ${payload.currency} | Ref ${payload.reference} | ${formattedDate}`
+    });
+  }
+
+  async sendPayInSuccessEmail(payload: PayInMailPayload) {
+    const formattedDate = this.formatDate(payload.date);
+    await this.dispatch({
+      to: payload.to,
+      subject: payload.subject,
+      template: 'payin-success',
+      context: {
+        subject: payload.subject,
+        firstName: payload.firstName,
+        amount: payload.amount,
+        currency: payload.currency,
+        reference: payload.reference,
+        formattedDate,
+        payer: payload.payer,
+        year: new Date().getFullYear()
+      },
+      text: `Payment received: ${payload.amount} ${payload.currency} | Ref ${payload.reference} | ${formattedDate}`
     });
   }
 

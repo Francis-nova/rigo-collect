@@ -35,6 +35,18 @@ interface PasswordResetCompleteMessage {
   firstName?: string;
 }
 
+interface PayoutMessage {
+  to: string;
+  subject: string;
+  amount: number | string;
+  currency: string;
+  reference: string;
+  date: string;
+  status: 'SUCCESS' | 'FAILED';
+  firstName?: string;
+  beneficiary?: { name?: string; bankName?: string; accountNumber?: string };
+}
+
 @Controller()
 export class PostOfficeController {
   private readonly logger = new Logger(PostOfficeController.name);
@@ -43,8 +55,22 @@ export class PostOfficeController {
 
   @EventPattern('payments.collection.received')
   async onCollection(@Payload() data: any, @Ctx() context: RmqContext) {
-    this.logger.log(`Collection event received: ${JSON.stringify(data)}`);
-    this.ack(context);
+    await this.process(context, async () => {
+      if (!data?.to || !data?.subject || !data?.reference || !data?.currency || !data?.amount || !data?.date) {
+        throw new Error('Invalid pay-in payload');
+      }
+      await this.mailer.sendPayInSuccessEmail({
+        to: data.to,
+        subject: data.subject,
+        amount: data.amount,
+        currency: data.currency,
+        reference: data.reference,
+        date: data.date,
+        status: 'SUCCESS',
+        firstName: data.firstName,
+        payer: data.payer,
+      });
+    });
   }
 
   @EventPattern('auth.email.verification')
@@ -107,6 +133,47 @@ export class PostOfficeController {
         subject: data.subject,
         changedAt: data.changedAt,
         firstName: data.firstName
+      });
+    });
+  }
+
+  @EventPattern('payments.payout.success')
+  async onPayoutSuccess(@Payload() data: PayoutMessage, @Ctx() context: RmqContext) {
+    await this.process(context, async () => {
+      if (!data?.to || !data?.subject || !data?.reference || !data?.currency || !data?.amount || !data?.date) {
+        throw new Error('Invalid payout success payload');
+      }
+      await this.mailer.sendPayoutSuccessEmail({
+        to: data.to,
+        subject: data.subject,
+        amount: data.amount,
+        currency: data.currency,
+        reference: data.reference,
+        date: data.date,
+        status: 'SUCCESS',
+        firstName: data.firstName,
+        beneficiary: data.beneficiary,
+      });
+    });
+  }
+
+  @EventPattern('payments.payout.failed')
+  async onPayoutFailed(@Payload() data: PayoutMessage, @Ctx() context: RmqContext) {
+    await this.process(context, async () => {
+      if (!data?.to || !data?.subject || !data?.reference || !data?.currency || !data?.amount || !data?.date) {
+        throw new Error('Invalid payout failed payload');
+      }
+      await this.mailer.sendPayoutFailedEmail({
+        to: data.to,
+        subject: data.subject,
+        amount: data.amount,
+        currency: data.currency,
+        reference: data.reference,
+        date: data.date,
+        status: 'FAILED',
+        firstName: data.firstName,
+        beneficiary: data.beneficiary,
+        retryMessage: 'You can retry this payout from your dashboard.',
       });
     });
   }

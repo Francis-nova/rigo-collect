@@ -5,6 +5,7 @@ import { Processor, Process } from '@nestjs/bull';
 import { InjectRepository } from "@nestjs/typeorm";
 import { ITransactionStatus, ITransactionType, Transaction } from "../../../entities/transactions.entity";
 import { PayoutProviderFactory } from "apps/payments/src/providers/payout-provider.factory";
+import { QueueService } from "../queue.service";
 
 @Injectable()
 @Processor('payouts')
@@ -18,6 +19,7 @@ export class PayoutProcessor {
     @InjectRepository(Transaction)
     private readonly transactionRepository: Repository<Transaction>,
     private readonly providerFactory: PayoutProviderFactory,
+    private readonly queueService: QueueService,
   ) { }
 
   @Process('payout')
@@ -67,6 +69,18 @@ export class PayoutProcessor {
       // update transaction status based on payout result
       transaction.status = ITransactionStatus.PROCESSING;
       await this.transactionRepository.save(transaction);
+
+      // schedule a verification job to reconcile status in case webhook is delayed/missed
+      await this.queueService.addTransactionJob(
+        { transactionId: transaction.id, provider: provider.name() },
+        {
+          delay: 15_000,
+          attempts: 5,
+          backoff: { type: 'exponential', delay: 30_000 },
+          removeOnComplete: 100,
+          removeOnFail: 200,
+        },
+      );
 
       this.logger.log(`Payout job completed for account: ${payoutData.accountNumber}`);
     } catch (error: any) {

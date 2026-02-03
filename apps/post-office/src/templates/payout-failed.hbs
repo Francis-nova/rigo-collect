@@ -1,0 +1,45 @@
+{{> header}}
+
+<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#ffffff;border-radius:8px;padding:24px;font-family:Arial,Helvetica,sans-serif;color:#222">
+  <tr>
+    <td>
+      <h2 style="margin:0 0 8px 0;color:#481868;font-size:20px;line-height:24px">Payout Failed</h2>
+      <p style="margin:0 0 16px 0;color:#444">We couldn’t complete your payout. The funds have been returned to your wallet if already debited.</p>
+
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="border-collapse:collapse">
+        <tr>
+          <td style="padding:8px 0;width:160px;color:#666">Amount</td>
+          <td style="padding:8px 0;color:#222"><strong>{{amount}}</strong> {{currency}}</td>
+        </tr>
+        <tr>
+          <td style="padding:8px 0;width:160px;color:#666">Reference</td>
+          <td style="padding:8px 0;color:#222">{{reference}}</td>
+        </tr>
+        <tr>
+          <td style="padding:8px 0;width:160px;color:#666">Date</td>
+          <td style="padding:8px 0;color:#222">{{formattedDate}}</td>
+        </tr>
+        <tr>
+          <td style="padding:8px 0;width:160px;color:#666">Status</td>
+          <td style="padding:8px 0;color:#222"><span style="color:#c5221f;font-weight:600">FAILED</span></td>
+        </tr>
+      </table>
+
+      {{#if beneficiary}}
+      <div style="margin-top:16px;color:#444">
+        <div style="font-weight:600;margin-bottom:4px">Beneficiary</div>
+        <div>{{beneficiary.name}} ({{beneficiary.bankName}})</div>
+        <div>Acct: {{beneficiary.accountNumber}}</div>
+      </div>
+      {{/if}}
+
+      {{#if retryMessage}}
+      <p style="margin-top:16px;color:#444">{{retryMessage}}</p>
+      {{/if}}
+
+      <p style="margin-top:24px;color:#666;font-size:12px">If you need help, reply to this email or contact support.</p>
+    </td>
+  </tr>
+</table>
+
+{{> footer}}

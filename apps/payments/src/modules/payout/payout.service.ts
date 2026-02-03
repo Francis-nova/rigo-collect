@@ -254,6 +254,9 @@ export class PayoutService {
             fee: Number(fee.data),
             beforeBalance,
             afterBalance,
+            notifyEmail: auth?.user?.email,
+            notifyBusinessEmail: auth?.business?.email,
+            notifyOwnerEmail: auth?.business?.owner?.email || auth?.user?.email,
           },
         });
 

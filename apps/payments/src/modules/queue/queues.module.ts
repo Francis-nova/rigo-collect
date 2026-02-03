@@ -16,6 +16,8 @@ import { BudpayProcessor } from './processors/budpay.processor';
 import { ProvidusProcessor } from './processors/providus.processor';
 import { RedisService } from '../../providers/redis.service';
 import { PayoutProviderFactory } from '../../providers/payout-provider.factory';
+import { TransactionProcessor } from './processors/transaction.processor';
+import { RabbitPublisherService } from '../../providers/rabbit-publisher.service';
 
 @Module({
   imports: [
@@ -44,6 +46,7 @@ import { PayoutProviderFactory } from '../../providers/payout-provider.factory';
   providers: [
     QueueService,
     PayoutProcessor,
+    TransactionProcessor,
     BudpayProcessor,
     ProvidusProcessor,
     // Provider factory and concrete providers required by PayoutProcessor
@@ -52,6 +55,7 @@ import { PayoutProviderFactory } from '../../providers/payout-provider.factory';
     BudPayProvider,
     ProvidusProvider,
     RedisService,
+    RabbitPublisherService,
   ],
   exports: [BullModule, QueueService],
 })
