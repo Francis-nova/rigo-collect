@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { InternalValidationController } from './internal.validation.controller';
+import { InternalBusinessController } from './internal.business.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AccessToken } from '../../entities/access-token.entity';
 import { RefreshToken } from '../../entities/refresh-token.entity';
@@ -9,7 +10,7 @@ import { VerificationCode } from '../../entities/verification-code.entity';
 import { Business } from '../../entities/business.entity';
 
 @Module({
-  controllers: [InternalValidationController],
+  controllers: [InternalValidationController, InternalBusinessController],
   imports: [
     TypeOrmModule.forFeature([Role, User, Business, VerificationCode, AccessToken, RefreshToken]),
   ],

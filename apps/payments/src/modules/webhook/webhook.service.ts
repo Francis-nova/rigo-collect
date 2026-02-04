@@ -9,6 +9,8 @@ import { Transaction, ITransactionStatus, ITransactionType } from '../../entitie
 import { Repository } from 'typeorm';
 import { SubAccount } from '../../entities/sub-account.entity';
 import { Account } from '../../entities/account.entity';
+import { RabbitPublisherService } from '../../providers/rabbit-publisher.service';
+import { InternalApiService } from '../../providers/internal-api.service';
 
 export interface WebHookData {
   sessionId: string;
@@ -42,6 +44,8 @@ export class WebhookService {
     @InjectRepository(Account)
     private readonly accountRepo: Repository<Account>,
     private readonly providusProvider: ProvidusProvider,
+    private readonly publisher: RabbitPublisherService,
+    private readonly internalApi: InternalApiService,
   ) { }
 
   async handleBudpay(payload: any, headers: Record<string, string>) {
@@ -140,7 +144,27 @@ export class WebhookService {
 
       await this.txRepo.save(transaction);
 
-      // TODO Post data to core client service
+      // Publish pay-in success notification to business/owner emails via Internal API (with metadata fallback)
+      const uniqueRecipients = await this.internalApi.getRecipientEmails(account.businessId, account.metadata);
+      if (uniqueRecipients.length) {
+        for (const to of uniqueRecipients) {
+          await this.publisher.publish('payments.collection.received', {
+            to,
+            subject: `Payment Received #${transaction?.reference} - ${payload.currency} ${amount || 'NGN'}`,
+            amount,
+            currency: payload.currency || 'NGN',
+            reference: payload.sessionId,
+            date: payload.tranDateTime || new Date().toISOString(),
+            status: 'SUCCESS',
+            payer: {
+              name: payload.sourceAccountName,
+              narration: payload.tranRemarks,
+            },
+          });
+        }
+      } else {
+        this.logger.warn('No notification recipients found in account metadata for pay-in');
+      }
 
       return {
         requestSuccessful: true,

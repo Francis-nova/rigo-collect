@@ -11,11 +11,13 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Transaction } from '../../entities/transactions.entity';
 import { Account } from '../../entities/account.entity';
 import { SubAccount } from '../../entities/sub-account.entity';
+import { RabbitPublisherService } from '../../providers/rabbit-publisher.service';
+import { InternalApiService } from '../../providers/internal-api.service';
 
 @Module({
   imports: [HttpModule, QueuesModule, TypeOrmModule.forFeature([Transaction, Account, SubAccount])],
   controllers: [WebhookController],
-  providers: [WebhookService, BudPayProvider, ProvidusProvider, RedisService],
+  providers: [WebhookService, BudPayProvider, ProvidusProvider, RedisService, RabbitPublisherService, InternalApiService],
   exports: [WebhookService],
 })
 export class WebhookModule {}
