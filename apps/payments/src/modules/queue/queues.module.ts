@@ -18,9 +18,11 @@ import { RedisService } from '../../providers/redis.service';
 import { PayoutProviderFactory } from '../../providers/payout-provider.factory';
 import { TransactionProcessor } from './processors/transaction.processor';
 import { RabbitPublisherService } from '../../providers/rabbit-publisher.service';
+import { FeesModule } from '../fees/fees.module';
 
 @Module({
   imports: [
+    FeesModule,
     TypeOrmModule.forFeature([
       Transaction,
       Currency,

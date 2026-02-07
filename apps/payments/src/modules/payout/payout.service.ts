@@ -56,9 +56,20 @@ export class PayoutService {
 
   async getPayoutFee(amount: number) {
     try {
-      const fee = calculateBankTransferFee(Number(amount));
-      const { vat, totalFeeAmount } = calculateVAT(fee);
-      return ok(totalFeeAmount);
+      const numericAmount = Number(amount);
+
+      // Tiered bank fee
+      let fee = 0;
+      if (numericAmount <= 5000) fee = 10;
+      else if (numericAmount <= 50000) fee = 25;
+      else fee = 50;
+
+      // VAT is applied only on the bank fee
+      const vatRate = 0.075;
+      const vat = Number((fee * vatRate).toFixed(2));
+      const total = Number((fee + vat).toFixed(2));
+
+      return ok({ fee, vat, total });
     } catch (error: any) {
       this.logger.error('Failed to fetch payout fee', error?.stack || error);
       throw new Error('Error fetching payout fee. Please try again later.');
@@ -153,9 +164,10 @@ export class PayoutService {
 
         // get transaction fee...
         const fee = await this.getPayoutFee(Number(payload.amount));
+        const feeData = (fee?.data as any) || { fee: 0, vat: 0, total: 0 };
 
-        // total amount to debit (amount + fee)
-        const totalAmount = Number(payload.amount) + Number(fee.data);
+        // total amount to debit (amount + fee + VAT)
+        const totalAmount = Number(payload.amount) + Number(feeData.total ?? 0);
 
         // balance check before locking
         if (account.balance < totalAmount) {
@@ -251,7 +263,7 @@ export class PayoutService {
           metadata: {
             destination: payload.destination,
             currency: payload.currency,
-            fee: Number(fee.data),
+            fee: Number(feeData.total ?? 0),
             beforeBalance,
             afterBalance,
             notifyEmail: auth?.user?.email,

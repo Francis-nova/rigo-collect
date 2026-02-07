@@ -8,7 +8,9 @@
     "dev": "nodemon",
     "build": "rimraf dist && tsc -p tsconfig.json",
     "seed:currencies": "node -r ts-node/register -r tsconfig-paths/register src/seeds/seed-currencies.ts",
-    "seed:providers": "node -r ts-node/register -r tsconfig-paths/register src/seeds/seed-provider-settings.ts"
+    "seed:providers": "node -r ts-node/register -r tsconfig-paths/register src/seeds/seed-provider-settings.ts",
+    "migrate:run": "node -r ts-node/register -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:run -d src/database/data-source.ts",
+    "migrate:revert": "node -r ts-node/register -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:revert -d src/database/data-source.ts"
   },
   "dependencies": {
     "@nestjs/axios": "^3.1.3",

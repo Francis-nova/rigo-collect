@@ -11,6 +11,7 @@ import { SubAccount } from '../../entities/sub-account.entity';
 import { Account } from '../../entities/account.entity';
 import { RabbitPublisherService } from '../../providers/rabbit-publisher.service';
 import { InternalApiService } from '../../providers/internal-api.service';
+import { PayinFeeService } from '../fees/payin-fee.service';
 
 export interface WebHookData {
   sessionId: string;
@@ -46,6 +47,7 @@ export class WebhookService {
     private readonly providusProvider: ProvidusProvider,
     private readonly publisher: RabbitPublisherService,
     private readonly internalApi: InternalApiService,
+    private readonly payinFeeService: PayinFeeService,
   ) { }
 
   async handleBudpay(payload: any, headers: Record<string, string>) {
@@ -124,14 +126,18 @@ export class WebhookService {
         };
       }
 
-      const amount = Number(payload.settledAmount || payload.transactionAmount || 0);
+      const grossAmount = Number(payload.settledAmount || payload.transactionAmount || 0);
+      const feeRule = await this.payinFeeService.getEffectiveRule(account.businessId, payload.currency || 'NGN');
+      const computed = this.payinFeeService.calculate(grossAmount, feeRule);
+
       const beforeBalance = Number(account.balance);
-      const afterBalance = beforeBalance + amount;
+      const afterBalance = beforeBalance + computed.netAmount;
       await this.accountRepo.update({ id: account.id }, { balance: afterBalance });
 
       const transaction = this.txRepo.create({
         accountId: account.id,
-        amount,
+        amount: computed.netAmount,
+        fee: computed.feeAmount,
         currencyId: account.currencyId,
         transactionId: payload.sessionId,
         reference: payload.sessionId,
@@ -139,7 +145,29 @@ export class WebhookService {
         type: ITransactionType.CREDIT,
         description: payload.tranRemarks || `CR - VA Funding #${payload.sourceAccountNumber} - ${payload.sourceAccountName}`,
         processedAt: new Date(payload.tranDateTime || Date.now()),
-        metadata: payload,
+        metadata: {
+          providerPayload: payload,
+          grossAmount,
+          netAmount: computed.netAmount,
+          feeAmount: computed.feeAmount,
+          feeRule: this.payinFeeService.describeRule(computed.rule),
+          beforeBalance,
+          afterBalance,
+          payer: {
+            name: payload.sourceAccountName,
+            accountNumber: payload.sourceAccountNumber,
+            bankName: payload.sourceBankName,
+            narration: payload.tranRemarks,
+          },
+          collectionAccount: {
+            accountId: account.id,
+            subAccountId: subAccount.id,
+            accountNumber: subAccount.accountNumber,
+            accountName: subAccount.accountName,
+            bankName: subAccount.bankName,
+            businessId: account.businessId,
+          },
+        },
       });
 
       await this.txRepo.save(transaction);
@@ -150,8 +178,8 @@ export class WebhookService {
         for (const to of uniqueRecipients) {
           await this.publisher.publish('payments.collection.received', {
             to,
-            subject: `Payment Received #${transaction?.reference} - ${payload.currency} ${amount || 'NGN'}`,
-            amount,
+            subject: `Payment Received #${transaction?.reference} - ${payload.currency} ${computed.netAmount || 'NGN'}`,
+            amount: computed.netAmount,
             currency: payload.currency || 'NGN',
             reference: payload.sessionId,
             date: payload.tranDateTime || new Date().toISOString(),

@@ -15,7 +15,7 @@ export class ApiKeyGuard implements CanActivate {
     const res = await firstValueFrom(this.authClient.send('auth.validateApiKey', { apiKey }));
     if (!res?.valid) throw new UnauthorizedException('Invalid API key');
     // attach merchant to request for downstream handlers
-    req.merchant = { id: res.merchantId };
+    req.merchant = { id: res.merchantId, environment: res.environment };
     return true;
   }
 }

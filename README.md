@@ -30,3 +30,6 @@ pnpm dev:auth
 pnpm dev:payments
 pnpm dev:post-office
 ```
+
+## Documentation
+- Endpoints & Messaging PRD: see [docs/endpoints-prd.md](docs/endpoints-prd.md)

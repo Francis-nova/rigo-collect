@@ -17,6 +17,7 @@ import { BusinessModule } from './modules/business/business.module';
 import { UtilitiesModule } from './modules/utilities/utilities.module';
 import { ProfileModule } from './modules/profile/profile.module';
 import { InternalModule } from './modules/internal/internal.module';
+import { ApiKeysModule } from './modules/api-keys/api-keys.module';
 import { RolesSeeder } from './seeds/roles.seeder';
 import { IndustriesSeeder } from './seeds/industries.seeder';
 import { CountriesSeeder } from './seeds/countries.seeder';
@@ -39,6 +40,7 @@ import { CountriesSeeder } from './seeds/countries.seeder';
     UtilitiesModule,
     ProfileModule,
     InternalModule,
+    ApiKeysModule,
   ],
   controllers: [],
   providers: [RolesSeeder, IndustriesSeeder, CountriesSeeder],

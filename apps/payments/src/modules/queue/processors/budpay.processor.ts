@@ -7,6 +7,7 @@ import { Account } from '../../../entities/account.entity';
 import { ITransactionStatus, ITransactionType, Transaction } from '../../../entities/transactions.entity';
 import { BudPayProvider } from '../../../providers/providers.impl/budpay.provider';
 import { RabbitPublisherService } from '../../../providers/rabbit-publisher.service';
+import { PayinFeeService } from '../../fees/payin-fee.service';
 
 @Injectable()
 @Processor('budpay')
@@ -22,6 +23,7 @@ export class BudpayProcessor {
     private readonly txnRepo: Repository<Transaction>,
     private readonly provider: BudPayProvider,
     private readonly publisher: RabbitPublisherService,
+    private readonly payinFeeService: PayinFeeService,
   ) { }
 
   /**
@@ -197,15 +199,23 @@ export class BudpayProcessor {
         throw new Error('Main account not found for sub-account');
       }
 
-      // credit the main account
+      const grossAmount = Number(validateTransaction.amount);
+      const feeRule = await this.payinFeeService.getEffectiveRule(
+        mainAccount.businessId,
+        validateTransaction.currency || mainAccount.currency?.code || 'NGN',
+      );
+      const computed = this.payinFeeService.calculate(grossAmount, feeRule);
+
+      // credit the main account with net amount
       const beforeBalance = Number(mainAccount.balance);
-      const afterBalance = beforeBalance + Number(validateTransaction.amount);
+      const afterBalance = beforeBalance + computed.netAmount;
       await this.accountRepo.update({ id: mainAccount.id }, { balance: afterBalance });
 
       // record the transaction
       const transaction = this.txnRepo.create({
         accountId: mainAccount.id,
-        amount: Number(validateTransaction.amount),
+        amount: computed.netAmount,
+        fee: computed.feeAmount,
         currencyId: mainAccount.currencyId,
         reference: validateTransaction.reference,
         status: ITransactionStatus.COMPLETED,
@@ -216,6 +226,24 @@ export class BudpayProcessor {
           providerResponse: validateTransaction.raw,
           beforeBalance,
           afterBalance,
+          grossAmount: computed.grossAmount,
+          netAmount: computed.netAmount,
+          feeAmount: computed.feeAmount,
+          feeRule: this.payinFeeService.describeRule(computed.rule),
+          payer: {
+            name: validateTransaction?.details?.transferDetails?.payerName,
+            accountNumber: validateTransaction?.details?.transferDetails?.payerAccount,
+            bankName: validateTransaction?.details?.transferDetails?.payerBank,
+            narration: validateTransaction?.details?.transferDetails?.narration,
+          },
+          collectionAccount: {
+            accountId: mainAccount.id,
+            subAccountId: subAccount.id,
+            accountNumber: subAccount.accountNumber,
+            accountName: subAccount.accountName,
+            bankName: subAccount.bankName,
+            businessId: mainAccount.businessId,
+          },
         },
       });
       await this.txnRepo.save(transaction);
@@ -235,7 +263,7 @@ export class BudpayProcessor {
           await this.publisher.publish('payments.collection.received', {
             to,
             subject: 'Payment Received',
-            amount: Number(validateTransaction.amount),
+            amount: computed.netAmount,
             currency: validateTransaction.currency || mainAccount.currency?.code || 'NGN',
             reference: validateTransaction.reference,
             date: new Date().toISOString(),

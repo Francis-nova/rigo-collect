@@ -1,22 +1,24 @@
 import { Transaction } from "apps/payments/src/entities/transactions.entity";
 
 export class TransactionResource {
-  constructor() {}
+  constructor() { }
 
   toJSON(transaction: Transaction) {
     return {
-      id: transaction.id,   
+      id: transaction.id,
       reference: transaction.reference,
       transactionId: transaction.transactionId,
-      amount: transaction.amount,
-      currency: transaction.currency ?? 0,
-      fee: transaction.fee ?? 0,
+      amount: Number(transaction.metadata?.grossAmount ?? 0),
+      settlementAmount: Number(transaction.metadata?.netAmount ?? 0),
+      fee: Number(transaction.metadata?.feeAmount ?? 0),
+      currency: transaction.account.currency.code,
       type: transaction.type,
       status: transaction.status,
       createdAt: transaction.createdAt,
       updatedAt: transaction.updatedAt,
       account: {
         id: transaction.account.id,
+        name: transaction.account.name,
         status: transaction.account.status,
         currency: {
           id: transaction.account.currency.id,
@@ -25,9 +27,12 @@ export class TransactionResource {
           symbol: transaction.account.currency.symbol,
           countryCode: transaction.account.currency.countryCode,
         },
+        collectionAccount: transaction.metadata?.collectionAccount ?? null,
+        payer: transaction.metadata?.payer ?? null,
         meta: {
-          reference: transaction.account?.metadata?.name,
-          status: transaction.account?.metadata?.status,
+          feeRule: transaction.metadata?.feeRule ?? null,
+          afterBalance: transaction.metadata?.afterBalance ?? null,
+          beforeBalance: transaction.metadata?.beforeBalance ?? null,
         },
       },
     };

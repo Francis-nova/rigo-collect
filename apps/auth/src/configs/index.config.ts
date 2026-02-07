@@ -51,6 +51,7 @@ export default {
     refreshSecret: process.env.REFRESH_SECRET || process.env.JWT_SECRET!,
     refreshExpiresIn: process.env.REFRESH_EXPIRES_IN || '7d',
     internalApiKey: process.env.INTERNAL_API_KEY || undefined,
+    apiKeyPepper: process.env.API_KEY_PEPPER || process.env.JWT_SECRET || '',
     emailVerification: {
       ttlSeconds: Number(process.env.EMAIL_VERIFICATION_TTL_SECONDS || 600),
       resendLimit: Number(process.env.EMAIL_VERIFICATION_RESEND_LIMIT || 3),
