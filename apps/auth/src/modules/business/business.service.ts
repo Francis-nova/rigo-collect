@@ -11,6 +11,9 @@ import { ClientProxy } from '@nestjs/microservices';
 import { POSTOFFICE_SERVICE } from '@pkg/common';
 import { User } from '../../entities/user.entity';
 import { v4 as uuidv4 } from 'uuid';
+import { ApiKey } from '../../entities/api-key.entity';
+import { randomBytes, createHash } from 'crypto';
+import indexConfig from '../../configs/index.config';
 
 @Injectable()
 export class BusinessService {
@@ -21,6 +24,7 @@ export class BusinessService {
     @InjectRepository(BusinessUser) private readonly pivotRepo: Repository<BusinessUser>,
     @InjectRepository(BusinessInvite) private readonly inviteRepo: Repository<BusinessInvite>,
     @InjectRepository(User) private readonly userRepo: Repository<User>,
+    @InjectRepository(ApiKey) private readonly apiKeyRepo: Repository<ApiKey>,
     @Inject(POSTOFFICE_SERVICE) private readonly postOfficeClient: ClientProxy,
   ) { }
 
@@ -55,12 +59,39 @@ export class BusinessService {
 
         //TODO send an email to the user about their new business creation via queue...
 
+        const apiKey = await this.createInitialApiKey(trx.getRepository(ApiKey), business.id);
+
         return ok({ business, pivot: membership }, 'business created successfully');
       });
     } catch (error: any) {
       this.logger.error('Failed to create business with owner', error?.stack || error);
       throw new Error('Error creating business. Please try again later.');
     }
+  }
+
+  private generateKey(environment: 'production' | 'sandbox') {
+    const prefix = environment === 'production' ? 'rk_live_' : 'rk_test_';
+    const suffix = randomBytes(24).toString('hex');
+    return `${prefix}${suffix}`;
+  }
+
+  private hashKey(apiKey: string) {
+    const pepper = indexConfig.auth.apiKeyPepper || '';
+    return createHash('sha256').update(`${apiKey}${pepper}`).digest('hex');
+  }
+
+  private async createInitialApiKey(repo: Repository<ApiKey>, businessId: string) {
+    const environment = indexConfig.applicationEnv === 'production' ? 'production' : 'sandbox';
+    const apiKey = this.generateKey(environment);
+    const record = repo.create({
+      businessId,
+      environment,
+      keyHash: this.hashKey(apiKey),
+      lastFour: apiKey.slice(-8),
+      isActive: true,
+    });
+    await repo.save(record);
+    return { apiKey, environment: record.environment, lastFour: record.lastFour };
   }
 
   async findUserBusinesses(userId: string) {
@@ -79,7 +110,8 @@ export class BusinessService {
 
     //TODO send an email invitation to the user via queue...
 
-    return this.pivotRepo.save(pivot);
+    await this.pivotRepo.save(pivot);
+    return ok({ businessId }, 'user added successfully');
   }
 
   async updateAddresses(businessId: string, payload: BusinessAddressUpdateDto) {
@@ -94,7 +126,8 @@ export class BusinessService {
   async updateTin(businessId: string, payload: TinUpdateDto) {
     const updates: Partial<Business> = { tinNumber: payload.tinNumber };
     await this.businessRepo.update(businessId, updates);
-    return this.businessRepo.findOne({ where: { id: businessId } });
+    const data  = await this.businessRepo.findOne({ where: { id: businessId } });
+    return ok({ data }, 'Business Tin successfully');
   }
 
   // Industries listing moved to UtilitiesService

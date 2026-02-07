@@ -127,7 +127,7 @@ export class BusinessController {
     getKycReadiness(
         @Param('businessId') businessId: string,
     ) {
-        return this.kyc.getKycReadiness(businessId);
+        return this.kyc.getKycReadinessCheck(businessId);
     }
 
     // Invitations

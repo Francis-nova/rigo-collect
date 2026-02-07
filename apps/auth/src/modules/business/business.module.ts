@@ -15,9 +15,10 @@ import { KycService } from './kyc.service';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { POSTOFFICE_SERVICE } from '@pkg/common';
 import indexConfig from '../../configs/index.config';
+import { ApiKey } from '../../entities/api-key.entity';
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Business, BusinessUser, BusinessInvite, PersonKyc, Director, Document, AuditLog, Industry, User]),
+    TypeOrmModule.forFeature([Business, BusinessUser, BusinessInvite, PersonKyc, Director, Document, AuditLog, Industry, User, ApiKey]),
     ClientsModule.register([
       {
         name: POSTOFFICE_SERVICE,

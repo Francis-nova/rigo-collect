@@ -3,30 +3,15 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull } from 'typeorm';
 import { randomBytes, createHash } from 'crypto';
 import { ApiKey, ApiKeyEnvironment } from '../../entities/api-key.entity';
-import { BusinessService } from '../business/business.service';
 import indexConfig from '../../configs/index.config';
 
 @Injectable()
 export class ApiKeysService {
   constructor(
     @InjectRepository(ApiKey) private readonly apiKeyRepo: Repository<ApiKey>,
-    private readonly businessService: BusinessService,
   ) {}
 
-  async rotate(userId: string, businessId: string, environment: ApiKeyEnvironment = 'production') {
-    const membership = await this.businessService.getUserMembership(userId, businessId);
-    if (!membership || membership.status !== 'ACTIVE') {
-      throw new Error('You do not have access to this business');
-    }
-    if (!['OWNER', 'ADMIN'].includes(membership.role)) {
-      throw new Error('Only business owners or admins can manage API keys');
-    }
-
-    const business = await this.businessService.getBusinessById(businessId);
-    if (!business) {
-      throw new Error('Business not found');
-    }
-
+  async rotate(businessId: string, environment: ApiKeyEnvironment = 'production') {
     const now = new Date();
     await this.apiKeyRepo.update({ businessId, environment, isActive: true }, { isActive: false, revokedAt: now });
 
@@ -40,11 +25,7 @@ export class ApiKeysService {
     return { apiKey, environment: record.environment, lastFour: record.lastFour };
   }
 
-  async list(userId: string, businessId: string) {
-    const membership = await this.businessService.getUserMembership(userId, businessId);
-    if (!membership || membership.status !== 'ACTIVE') {
-      throw new Error('You do not have access to this business');
-    }
+  async list(businessId: string) {
     const keys = await this.apiKeyRepo.find({ where: { businessId }, order: { createdAt: 'DESC' } });
     return keys.map(k => ({
       id: k.id,

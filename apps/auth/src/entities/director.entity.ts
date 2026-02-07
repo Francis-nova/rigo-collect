@@ -1,4 +1,4 @@
-import { Column, CreateDateColumn, Entity, Index, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { Business } from './business.entity';
 import { PersonKyc } from './person-kyc.entity';
 
@@ -7,6 +7,7 @@ export class Director {
   @PrimaryGeneratedColumn('uuid') id!: string;
 
   @ManyToOne(() => Business, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'business_id' })
   business!: Business;
 
   @Column({ name: 'business_id', type: 'uuid' })
@@ -14,6 +15,7 @@ export class Director {
   businessId!: string;
 
   @ManyToOne(() => PersonKyc, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'person_id' })
   person!: PersonKyc;
 
   @Column({ name: 'person_id', type: 'uuid' })

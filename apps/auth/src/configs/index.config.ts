@@ -39,6 +39,7 @@ const storage = {
 
 export default {
   nodeEnv: process.env.NODE_ENV || 'development',
+  applicationEnv: process.env.APPLICATION_ENV || 'development',
   port: parseInt(process.env.PORT || '4322', 10),
   apiPrefix: process.env.API_PREFIX || 'api',
   database: databaseConfig,

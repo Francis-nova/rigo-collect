@@ -7,6 +7,7 @@ import { Director } from '../../entities/director.entity';
 import { Document } from '../../entities/document.entity';
 import { AuditAction, AuditLog } from '../../entities/audit-log.entity';
 import { DirectorCreateDto, DirectorUpdateDto, DocumentCreateDto, DocumentStatus, DocumentType, ProofOfAddressCreateDto, BusinessKycStage, BusinessKYC } from '@pkg/dto';
+import { ok } from '@pkg/common';
 
 @Injectable()
 export class KycService {
@@ -16,7 +17,7 @@ export class KycService {
     @InjectRepository(Director) private readonly directorRepo: Repository<Director>,
     @InjectRepository(Document) private readonly documentRepo: Repository<Document>,
     @InjectRepository(AuditLog) private readonly auditRepo: Repository<AuditLog>,
-  ) {}
+  ) { }
 
   async addDirector(businessId: string, payload: DirectorCreateDto, actorUserId?: string) {
     const person = this.personRepo.create({
@@ -36,6 +37,7 @@ export class KycService {
 
     const director = this.directorRepo.create({ businessId, personId: savedPerson.id });
     const savedDirector = await this.directorRepo.save(director);
+
     // Update KYC stage: at least one director collected
     await this.businessRepo.update(businessId, { kycStage: BusinessKycStage.DIRECTORS_COLLECTED });
 
@@ -58,11 +60,12 @@ export class KycService {
       actorUserId: actorUserId,
     }));
 
-    return savedDirector;
+    return ok({ savedDirector }, 'Director added successfully');
   }
 
   async listDirectors(businessId: string) {
-    return this.directorRepo.find({ where: { businessId }, relations: ['person'] });
+    const directors = await this.directorRepo.find({ where: { businessId }, relations: ['person'] });
+    return ok({ directors }, 'Directors retrieved successfully');
   }
 
   async updateDirector(businessId: string, directorId: string, payload: DirectorUpdateDto, actorUserId?: string) {
@@ -105,7 +108,8 @@ export class KycService {
       actorUserId: actorUserId,
     }));
 
-    return this.directorRepo.findOne({ where: { id: directorId }, relations: ['person'] });
+    const updatedDirector = await this.directorRepo.findOne({ where: { id: directorId }, relations: ['person'] });
+    return ok({ director: updatedDirector }, 'Director updated successfully');
   }
 
   async addDocument(businessId: string, payload: DocumentCreateDto, actorUserId?: string, directorId?: string) {
@@ -134,11 +138,12 @@ export class KycService {
       actorUserId: actorUserId,
     }));
 
-    return saved;
+    return ok({ saved }, 'Document updated successfully');
   }
 
   async listDocuments(businessId: string) {
-    return this.documentRepo.find({ where: { businessId } });
+    const documents = await this.documentRepo.find({ where: { businessId } });
+    return ok({ documents }, 'Document retrieved successfully');
   }
 
   async addProofOfAddress(businessId: string, payload: ProofOfAddressCreateDto, actorUserId?: string) {
@@ -161,7 +166,7 @@ export class KycService {
       actorUserId: actorUserId,
     }));
 
-    return saved;
+    return ok({ saved }, 'Proof of address successfully added');
   }
 
   async submitForReview(businessId: string, actorUserId?: string) {
@@ -178,7 +183,12 @@ export class KycService {
       changes: { kycStage: BusinessKycStage.REVIEW_IN_PROGRESS, kycStatus: BusinessKYC.IN_REVIEW },
       actorUserId,
     }));
-    return updated;
+    return ok({ updated }, 'Business submitted for review successfully');
+  }
+
+  async getKycReadinessCheck(businessId: string) {
+    const readiness = await this.getKycReadiness(businessId);
+    return ok({ readiness }, 'KYC readiness retrieved successfully');
   }
 
   async getKycReadiness(businessId: string) {
